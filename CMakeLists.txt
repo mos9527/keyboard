@@ -18,7 +18,7 @@ add_subdirectory(imtui)
 
 file(
 	GLOB_RECURSE SOURCES
-	"${PROJECT_SOURCE_DIR}/main.cpp" 
+	"${PROJECT_SOURCE_DIR}/keyboard.cpp" 
 	"PDCurses/wincon/*.c" "PDCurses/pdcurses/*.c" 
 	"imtui/src/imtui-impl-ncurses.cpp"
 )
