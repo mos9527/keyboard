@@ -13,23 +13,21 @@ project ("MIDI2Keyboard")
 set(CMAKE_CXX_STANDARD 20)
 
 set(MINGW true)
-include_directories(PDCurses)
-add_subdirectory(imtui)
+include_directories("contrib/PDCurses")
+add_subdirectory("contrib/imtui")
 
 
 file(
 	GLOB_RECURSE SOURCES
-	"${PROJECT_SOURCE_DIR}/keyboard.cpp" 
-	"PDCurses/wincon/*.c" "PDCurses/pdcurses/*.c" 
-	"imtui/src/imtui-impl-ncurses.cpp"
+	"src/keyboard.cpp" 
+	"contrib/PDCurses/wincon/*.c" "contrib/PDCurses/pdcurses/*.c" 
+	"contrib/imtui/src/imtui-impl-ncurses.cpp"
 )
-file(GLOB_RECURSE INCLUDES "PDCurses/*.h")
-
 # Add source to this project's executable.
-add_executable (MIDI2Keyboard ${SOURCES} ${INCLUDES})
+add_executable (MIDI2Keyboard ${SOURCES})
 add_compile_definitions(WINRT)
-target_precompile_headers(MIDI2Keyboard PUBLIC "pch.hpp")
+target_precompile_headers(MIDI2Keyboard PUBLIC "src/pch.hpp")
 target_include_directories(MIDI2Keyboard PRIVATE PDCurses)
-target_include_directories(MIDI2Keyboard PRIVATE "imtui/include")
-target_include_directories(MIDI2Keyboard PRIVATE "imtui/third-party/imgui")
+target_include_directories(MIDI2Keyboard PRIVATE "contrib/imtui/include")
+target_include_directories(MIDI2Keyboard PRIVATE "contrib/imtui/third-party/imgui")
 target_link_libraries(MIDI2Keyboard PRIVATE imtui imgui-for-imtui)
