@@ -16,6 +16,7 @@ set(MINGW true)
 include_directories(PDCurses)
 add_subdirectory(imtui)
 
+
 file(
 	GLOB_RECURSE SOURCES
 	"${PROJECT_SOURCE_DIR}/keyboard.cpp" 
@@ -26,6 +27,7 @@ file(GLOB_RECURSE INCLUDES "PDCurses/*.h")
 
 # Add source to this project's executable.
 add_executable (MIDI2Keyboard ${SOURCES} ${INCLUDES})
+add_compile_definitions(WINRT)
 target_precompile_headers(MIDI2Keyboard PUBLIC "pch.hpp")
 target_include_directories(MIDI2Keyboard PRIVATE PDCurses)
 target_include_directories(MIDI2Keyboard PRIVATE "imtui/include")

@@ -16,6 +16,14 @@
 #include <span>
 #include <source_location>
 #include <string>
+#include <variant>
+#ifdef WINRT
+#pragma comment(lib, "windowsapp")
+#include "winrt/Windows.Foundation.h"
+#include "winrt/Windows.Foundation.Collections.h"
+#include "winrt/Windows.Devices.Midi.h"
+#include "winrt/Windows.Devices.Enumeration.h"
+#endif
 #define PRED(X) [](auto const& lhs, auto const& rhs) {return X;}
 #define PAIR2(T) std::pair<T,T>
 inline void __check(bool condition, const std::string& message = "", const std::source_location& location = std::source_location::current()) {

@@ -1,21 +1,28 @@
 ﻿#include "imtui/imtui.h"
 #include "imtui/imtui-impl-ncurses.h"
-#include "winmidi.hpp"
+#include "midi.hpp"
 #include "imgui/imgui_internal.h"
 
 #include "chord.hpp"
 
-winmidi::devices_t g_devices;
-std::unique_ptr<winmidi::midiInContext> g_midiInContext;
+typedef std::unique_ptr<midi::inputContext> midiInContext_t;
+template<typename... T> midiInContext_t make_midi_input_context(T const&... args) { 
+    return std::make_unique<midi::inputContext_WinRT>(args...);
+}
+/****/
+midiInContext_t g_midiInContext;
+midi::midiInputDevices_t g_devices;
 chord::midi_key_states_t g_keyboardState;
+/****/
 int g_keyboardKeymap[256]{};
-HANDLE g_stdIn, g_stdOut;
-
 line_buffer<256,256> g_chordNames;
-
+/****/
+HANDLE g_stdIn, g_stdOut;
+/****/
 void enter() {
-    g_devices = winmidi::getMidiInDevices();
-    g_midiInContext = std::make_unique<winmidi::midiInContext>(0);
+    g_midiInContext = make_midi_input_context();
+    g_midiInContext->getMidiInDevices(g_devices);
+    g_midiInContext = make_midi_input_context(g_devices[0]);
     g_stdIn = GetStdHandle(STD_INPUT_HANDLE);
     g_stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
 }
@@ -136,51 +143,47 @@ void keyboard_widget() {
     }
 }
 void event_loop() {
-    using namespace winmidi;
+    using namespace midi;
     ImGui::SetNextWindowPos({ 0,0 });
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-    ImGui::Begin("MIDI2Keyboard");
+    ImGui::Begin("keyboard");
     if (g_midiInContext) {
-        switch (g_midiInContext->getStatus()) {
-        case midiInContext::STATUS_OK:
-        {
+        if (g_midiInContext->getStatus()) {
             auto pool = g_midiInContext->poolMessage();
             if (pool) {
                 auto& message = pool.value();
-                switch (message.type)
-                {
-                case MIM_DATA:
-                {
-                    handle_midi_key(HIWORD(message.param1), LOWORD(message.param1) >> 8);
-                    break;
-                }
-                default:
-                    break;
-                }
+                std::visit([&](auto&& arg) {
+                    using T = std::decay_t<decltype(arg)>;
+                    if constexpr (std::is_same_v<T, keyDownMessage_t>) {
+                        handle_midi_key(arg.velocity, arg.note);
+                    }
+                    else if constexpr (std::is_same_v<T, keyUpMessage_t>) {
+                        handle_midi_key(0, arg.note);
+                    }
+                    }, message);
             }
-            ImGui::TextColored(ImColor(0, 255, 0), "Connected: %s", g_devices[g_midiInContext->getDevice()].second.szPname);
-            break;
-        }
-        default:
-            ImGui::TextColored(ImColor(255, 0, 0), "ERROR: %s", getMidiErrorMessage(g_midiInContext->getStatus()));
+            ImGui::TextColored(ImColor(0, 255, 0), "Connected: %s", g_devices[g_midiInContext->getIndex()].name.c_str());
+        } else {        
+            static std::string errorMessage = g_midiInContext->getMidiErrorMessage();
+            ImGui::TextColored(ImColor(255, 0, 0), "ERROR: %s", errorMessage.c_str());
         }
     }
     ImGui::Separator();
     if (ImGui::CollapsingHeader("Device", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::BeginCombo(
             "###",
-            (g_devices.size() && g_midiInContext ? g_devices[g_midiInContext->getDevice()].second.szPname : "Select Device")
+            (g_devices.size() && g_midiInContext ? g_devices[g_midiInContext->getIndex()].name.c_str() : "Select Device")
         )) {
-            for (auto& [index, device] : g_devices) {
-                bool selected = g_midiInContext && g_midiInContext->getDevice() == index;
-                if (ImGui::Selectable(device.szPname, &selected))
-                    g_midiInContext = std::make_unique<winmidi::midiInContext>(index);
+            for (auto& [index, name, id] : g_devices) {
+                bool selected = g_midiInContext && g_midiInContext->getIndex() == index;
+                if (ImGui::Selectable(name.c_str(), &selected))
+                    g_midiInContext = make_midi_input_context(g_devices[index]);
             }
             ImGui::EndCombo();
         }
         ImGui::SameLine();  ImGui::Spacing();  ImGui::SameLine();
         if (ImGui::Button("Refresh")) {
-            g_devices = winmidi::getMidiInDevices();
+            g_midiInContext->getMidiInDevices(g_devices);
             g_midiInContext.reset();
         }
     }
@@ -218,6 +221,9 @@ void event_loop() {
 }
 
 int main() {
+#ifdef WINRT
+    winrt::init_apartment();
+#endif
     SetConsoleOutputCP(65001);
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
