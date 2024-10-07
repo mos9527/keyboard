@@ -18,7 +18,7 @@ namespace midi {
 		inline virtual std::string getMidiErrorMessage() = 0;
 		inline virtual ~inputContext() {};
 		/****/
-		inline virtual std::optional<message_t> poolMessage(bool blocking = false) {
+		inline virtual std::optional<message_t> pollMessage(bool blocking = false) {
 			if (!getStatus())
 				return {};
 			std::unique_lock<std::mutex> lock(messageMutex);
@@ -34,7 +34,7 @@ namespace midi {
 	/****/
 	struct inputContext_WinMM : public inputContext {
 	private:
-		uint32_t index;
+		uint32_t index = 0;
 		HMIDIIN handle;
 		MMRESULT status = -1;
 		static void CALLBACK MidiInProc(
@@ -50,11 +50,9 @@ namespace midi {
 			case MIM_OPEN:
 				break;
 			case MIM_DATA: {
-				auto status = dwParam1 & 0xFF;
-				auto note = (dwParam1 >> 8) & 0xFF;
-				auto velocity = (dwParam1 >> 16) & 0xFF;
-				if (status == 0x90) ctx->messages.push(keyDownMessage_t{ note, velocity }), ctx->messageCV.notify_one();
-				else if (status == 0x80) ctx->messages.push(keyUpMessage_t{ note, velocity }), ctx->messageCV.notify_one();
+				uint8_t velocity = HIWORD(dwParam1), note = LOWORD(dwParam1) >> 8;
+				if (velocity == 0) ctx->messages.push(keyUpMessage_t{ note, velocity }), ctx->messageCV.notify_one();
+				else ctx->messages.push(keyDownMessage_t{ note, velocity }), ctx->messageCV.notify_one();
 				break;
 			}
 			default:
@@ -87,8 +85,8 @@ namespace midi {
 			uint32_t i = 0;
 			for (auto& index : devices) {
 				MIDIINCAPS caps;
-				midiInGetDevCaps(i++, &caps, sizeof(MIDIINCAPS));
-				index.index = i; index.name = index.id = caps.szPname;
+				midiInGetDevCaps(i, &caps, sizeof(MIDIINCAPS));
+				index.index = i++; index.name = index.id = caps.szPname;
 			}
 		} // namespace winmidi
 	};
@@ -100,9 +98,8 @@ namespace midi {
 	using namespace Windows::Devices::Midi;
 	struct inputContext_WinRT : public inputContext {
 	private:
-		uint32_t index;
+		uint32_t index = 0;
 		MidiInPort port{ nullptr };
-		bool open = false;
 		static void MidiInProc(inputContext_WinRT* ctx, IMidiMessageReceivedEventArgs const& args) {
 			unique_lock<mutex> lock(ctx->messageMutex);
 			auto message = args.Message();
@@ -121,14 +118,14 @@ namespace midi {
 		}
 	public:
 		inline virtual const uint32_t getIndex() const { return index; }
-		inline virtual const bool getStatus() const { return open; }
+		inline virtual const bool getStatus() const { return port != nullptr; }
 		inline inputContext_WinRT() {};
 		inline inputContext_WinRT(inputDevice_t const& device) : index(device.index) {
 			auto co = [&]() -> IAsyncAction {
 				auto task = co_await MidiInPort::FromIdAsync(to_hstring(device.id));
 				if (task) {
-					open = true;
-					task.MessageReceived([&](auto&& sender, auto&& args) { MidiInProc(this, args); });
+					port = task.as<MidiInPort>();					
+					port.MessageReceived([&](auto&& sender, auto&& args) { MidiInProc(this, args); });
 				}
 				};
 			co().get();
