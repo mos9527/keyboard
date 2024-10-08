@@ -82,6 +82,8 @@ void setup() {
 	g_midiOutContext->getMidiOutDevices(g_midiOutDevices);
 	if (g_midiOutDevices.size())
 		g_midiOutContext = make_midi_output_context(g_midiOutDevices[std::min(g_midiOutDevices.size() - 1, (size_t)g_config.outputDeviceIndex)]);
+	if (g_midiInContext->getStatus())
+		g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
 }
 void poll_input() {
 	auto on_key_event = [&](uint8_t velocity, uint8_t key) {
@@ -123,19 +125,19 @@ void poll_input() {
 void draw() {
 	ImGui::SetNextWindowPos({ 0,0 });
 	ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-	ImGui::Begin("keyboard");
-	ImGui::Separator();
+	ImGui::Begin("keyboard");	
 	if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_None)) {
 		if (ImGui::Button("Save")) g_config.save();
 		ImGui::SameLine();
-		if (ImGui::Button("Load")) g_config.load();
+		if (ImGui::Button("Load")) g_config.load(), setup();
 		ImGui::SameLine();
 		if (ImGui::Button("Reset")) g_config.reset(), setup();
 	}
 
 	if (ImGui::CollapsingHeader("Hardware", ImGuiTreeNodeFlags_None)) {
+		ImGui::Text("System");
 		if (ImGui::BeginCombo("Backend", MIDI_BACKENDS[g_config.backend])) {
-			for (int i = 0; i < IM_ARRAYSIZE(MIDI_BACKENDS); i++) {
+			for (int i = 0; i < extent_of(MIDI_BACKENDS); i++) {
 				bool selected = g_config.backend == i;
 				if (ImGui::Selectable(MIDI_BACKENDS[i], &selected)) {
 					g_config.backend = i;
@@ -144,7 +146,7 @@ void draw() {
 			}
 			ImGui::EndCombo();
 		}
-		ImGui::Separator();
+		ImGui::Text("Input");
 		if (!g_midiInContext->getStatus()) {
 			static std::string errorMessage = g_midiInContext->getMidiErrorMessage();
 			ImGui::TextColored(ImColor(255, 0, 0), "ERROR: %s", errorMessage.c_str());
@@ -161,7 +163,7 @@ void draw() {
 			}
 			ImGui::EndCombo();
 		}
-		ImGui::Separator();
+		ImGui::Text("Output");
 		if (!g_midiOutContext->getStatus()) {
 			static std::string errorMessage = g_midiOutContext->getMidiErrorMessage();
 			ImGui::TextColored(ImColor(255, 0, 0), "ERROR: %s", errorMessage.c_str());
@@ -179,9 +181,24 @@ void draw() {
 			ImGui::EndCombo();
 		}
 		if (g_midiOutContext) {
-			ImGui::SliderInt("Output Channel", &g_config.outputChannel, 0, 15);			
-			if (ImGui::SliderInt("Output Program", &g_config.outputProgram, 0, 127)) {
-				g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
+			const char* channel_names[] = { "0","1", "2", "3", "4", "5", "6", "7", "8", "9", "10","11","12","13","14","15" };
+			for (int i = 0; i < extent_of(channel_names); i++) {
+				bool active = g_config.outputChannel == i;
+				if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+				if (ImGui::Button(channel_names[i], ImVec2(5,0))) g_config.outputChannel = i;
+				if (active) ImGui::PopStyleColor();
+				ImGui::SameLine();
+			}
+			ImGui::Text("Output Channel");
+			if (ImGui::BeginCombo("Output Program", midi::GM_programs[g_config.outputProgram])) {
+				for (int i = 0; i < extent_of(midi::GM_programs); i++) {
+					bool selected = g_config.outputProgram == i;
+					if (ImGui::Selectable(midi::GM_programs[i], &selected)) {
+						g_config.outputProgram = i;
+						g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
+					}
+				}
+				ImGui::EndCombo();
 			}
 		}
 		if (ImGui::Button("Refresh")) setup();
@@ -229,7 +246,7 @@ void draw() {
 					int paddingX = ImGui::GetStyle().FramePadding.x;
 					draw_list->AddRectFilled(ImVec2(paddingX + pos.x + offsetX, pos.y - blackKeySize.y), ImVec2(paddingX + pos.x + offsetX + keySize.x, pos.y), ImColor(keyColor));
 				}
-				std::string keyName = std::string{ chord::key_table::data[noteInOctave] } + std::to_string(octave);
+				std::string keyName = std::string{ chord::key_table[noteInOctave] } + std::to_string(octave);
 				if (g_config.keyboardKeymap[note]) {
 					UINT vkCode = g_config.keyboardKeymap[note];
 					UINT charCode = MapVirtualKeyA(vkCode, MAPVK_VK_TO_CHAR);
@@ -270,7 +287,7 @@ void draw() {
 		ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 		static int frameActive = 0;
 		if (ImGui::BeginPopupModal("Key Bind", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-			ImGui::Text("Mapping MIDI %d (%s)!", activeKey, chord::key_table::data[activeKey % 12]);
+			ImGui::Text("Mapping MIDI %d (%s)!", activeKey, chord::key_table[activeKey % 12]);
 			ImGui::Separator();
 			ImGui::Text("Waiting for key press...");
 			if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();

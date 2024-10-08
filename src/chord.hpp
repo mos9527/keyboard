@@ -38,16 +38,9 @@ namespace chord {
 	};
 	/****/
 	typedef pair<key_t, chord_arr_t> chord_item_t;
-	namespace key_table {
-		const char* data[] = { "C" ,"Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B" };
-		const size_t size = sizeof(data) / sizeof(data[0]);
-	}
-	namespace interval_table {
-		const char* data[] = { "Oct","min 2nd","Maj 2nd","min 3rd","Maj 3rd","P4","Tritone","P5","min 6th","Maj 6th","min 7th","Maj 7th" };
-		const size_t size = sizeof(data) / sizeof(data[0]);
-	}
-	namespace chord_table {
-		const chord_item_t data[] = {
+	const char* key_table[] = { "C" ,"Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B" };
+	const char* interval_table[] = { "Oct","min 2nd","Maj 2nd","min 3rd","Maj 3rd","P4","Tritone","P5","min 6th","Maj 6th","min 7th","Maj 7th" };
+	const chord_item_t chord_table[] = {
 			{{1, 3, 4}, chord_arr_t{chord_t{ chord_t::ROOT_BASS,"%smMaj9/ %s", 0},}},
 			{{1, 3, 4, 6}, chord_arr_t{chord_t{ chord_t::ROOT_BASS,"%smM11(no5)/ %s", 0},}},
 			{{1, 3, 4, 6, 7}, chord_arr_t{chord_t{ chord_t::ROOT_BASS,"%s13(#9b9)/ %s", 1},}},
@@ -489,10 +482,7 @@ namespace chord {
 			{{8, 10}, chord_arr_t{chord_t{ chord_t::ROOT_BASS,"%sadd9/ %s", 0},}},
 			{{9, 11}, chord_arr_t{chord_t{ chord_t::ROOT_BASS,"%sm(add9)/ %s", 0},}}
 		};
-		const size_t size = sizeof(data) / sizeof(data[0]);
-	}
-	namespace scale_table {
-		const chord_item_t data[] = {
+	const chord_item_t scale_table[] = {
 			{{1, 3, 4, 6, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sDiminished", 0},chord_t{ chord_t::NONE,"Half - Whole", 0},}},
 			{{1, 3, 4, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sAltered", 0},chord_t{ chord_t::NONE,"Super Locrian", 0},}},
 			{{1, 3, 5, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sLocrian", 0},}},
@@ -521,8 +511,6 @@ namespace chord {
 			{{3, 5, 6, 7, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sBlues", 0},}},
 			{{3, 5, 7, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sPentatonic Minor", 0},}}
 		};
-		const size_t size = sizeof(data) / sizeof(data[0]);
-	}
 }
 namespace chord {
 	typedef array<uint8_t, 256> midi_key_states_t;
@@ -545,29 +533,29 @@ namespace chord {
 		copy(crange.begin() + (crange.size() > 1 && crange[0] == 0), crange.end(), chord_keys.begin());
 		// find chord & scale (if applicable)
 		uint8_t bass_k = keys[0] % 12;
-		auto chord_v = find(chord_keys, chord_table::data, chord_table::size);
-		auto scale_v = find(chord_keys, scale_table::data, scale_table::size);
+		auto chord_v = find(chord_keys, chord_table, extent_of(chord_table));
+		auto scale_v = find(chord_keys, scale_table, extent_of(scale_table));
 		auto line_it = lines.begin();
 		// chords
 		if (chord_v) {
 			for (auto& v : chord_v->second) {
 				uint8_t nth_k = (keys[0] + chord_keys[v.nth_root]) % 12;
-				v.format_to_string(*line_it, key_table::data[bass_k], key_table::data[nth_k]);
+				v.format_to_string(*line_it, key_table[bass_k], key_table[nth_k]);
 				line_it++;
 			}
 		}
 		// intervals
 		if (crange.size() && crange.size() < 3) {
 			if (crange.size() == 1)
-				sprintf(*line_it, "%s %s", key_table::data[bass_k],interval_table::data[crange[0]]), line_it++;
+				sprintf(*line_it, "%s %s", key_table[bass_k],interval_table[crange[0]]), line_it++;
 			else
-				sprintf(*line_it, "%s %s", key_table::data[bass_k],interval_table::data[crange[1]]), line_it++;
+				sprintf(*line_it, "%s %s", key_table[bass_k],interval_table[crange[1]]), line_it++;
 		}
 		// scales
 		if (scale_v) {
 			for (auto& v : scale_v->second) {
 				uint8_t nth_k = (keys[0] + chord_keys[v.nth_root]) % 12;
-				v.format_to_string(*line_it, key_table::data[bass_k], key_table::data[nth_k]);
+				v.format_to_string(*line_it, key_table[bass_k], key_table[nth_k]);
 				line_it++;
 			}
 		}

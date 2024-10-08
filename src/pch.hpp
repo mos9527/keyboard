@@ -34,6 +34,8 @@ inline void __check(bool condition, const std::string& message = "", const std::
 	}
 }
 #define CHECK(EXPR, ...) __check(!!(EXPR), __VA_ARGS__)
+// https://stackoverflow.com/a/22713396
+template<typename T, size_t N> constexpr size_t extent_of(T(&)[N]) { return N; };
 // C++ Weekly - Ep 440 - Revisiting Visitors for std::visit - https://www.youtube.com/watch?v=et1fjd8X1ho
 template<typename... T> struct visitor : T... {
 	using T::operator()...;

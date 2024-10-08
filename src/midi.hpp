@@ -1,5 +1,138 @@
 #pragma once
 namespace midi {
+	// General MIDI Program names
+	const char* GM_programs[] = {
+		"Acoustic Grand Piano",
+		"Bright Acoustic Piano",
+		"Electric Grand Piano",
+		"Honky-tonk Piano",
+		"Electric Piano 1",
+		"Electric Piano 2",
+		"Harpsichord",
+		"Clavinet",
+		"Celesta",
+		"Glockenspiel",
+		"Music Box",
+		"Vibraphone",
+		"Marimba",
+		"Xylophone",
+		"Tubular Bells",
+		"Dulcimer",
+		"Drawbar Organ",
+		"Percussive Organ",
+		"Rock Organ",
+		"Church Organ",
+		"Reed Organ",
+		"Accordion",
+		"Harmonica",
+		"Tango Accordion",
+		"Acoustic Guitar (nylon)",
+		"Acoustic Guitar (steel)",
+		"Electric Guitar (jazz)",
+		"Electric Guitar (clean)",
+		"Electric Guitar (muted)",
+		"Overdriven Guitar",
+		"Distortion Guitar",
+		"Guitar Harmonics",
+		"Acoustic Bass",
+		"Electric Bass (finger)",
+		"Electric Bass (pick)",
+		"Fretless Bass",
+		"Slap Bass 1",
+		"Slap Bass 2",
+		"Synth Bass 1",
+		"Synth Bass 2",
+		"Violin",
+		"Viola",
+		"Cello",
+		"Contrabass",
+		"Tremolo Strings",
+		"Pizzicato Strings",
+		"Orchestral Harp",
+		"Timpani",
+		"String Ensemble 1",
+		"String Ensemble 2",
+		"SynthStrings 1",
+		"SynthStrings 2",
+		"Choir Aahs",
+		"Voice Oohs",
+		"Synth Voice",
+		"Orchestra Hit",
+		"Trumpet",
+		"Trombone",
+		"Tuba",
+		"Muted Trumpet",
+		"French Horn",
+		"Brass Section",
+		"Synth Brass 1",
+		"Synth Brass 2",
+		"Soprano Sax",
+		"Alto Sax",
+		"Tenor Sax",
+		"Baritone Sax",
+		"Oboe",
+		"English Horn",
+		"Bassoon",
+		"Clarinet",
+		"Piccolo",
+		"Flute",
+		"Recorder",
+		"Pan Flute",
+		"Blown Bottle",
+		"Shakuhachi",
+		"Whistle",
+		"Ocarina",
+		"Lead 1 (square)",
+		"Lead 2 (sawtooth)",
+		"Lead 3 (calliope)",
+		"Lead 4 (chiff)",
+		"Lead 5 (charang)",
+		"Lead 6 (voice)",
+		"Lead 7 (fifths)",
+		"Lead 8 (bass+lead)",
+		"Pad 1 (new age)",
+		"Pad 2 (warm)",
+		"Pad 3 (polysynth)",
+		"Pad 4 (choir)",
+		"Pad 5 (bowed)",
+		"Pad 6 (metallic)",
+		"Pad 7 (halo)",
+		"Pad 8 (sweep)",
+		"FX 1 (train)",
+		"FX 2 (soundtrack)",
+		"FX 3 (crystal)",
+		"FX 4 (atmosphere)",
+		"FX 5 (brightness)",
+		"FX 6 (goblins)",
+		"FX 7 (echoes)",
+		"FX 8 (sci-fi)",
+		"Sitar",
+		"Banjo",
+		"Shamisen",
+		"Koto",
+		"Kalimba",
+		"Bagpipe",
+		"Fiddle",
+		"Shanai",
+		"Tinkle Bell",
+		"Agogo",
+		"Steel Drums",
+		"Woodblock",
+		"Tailo Drum",
+		"Melodic Drum",
+		"Synth Drum",
+		"Reverse Cymbal",
+		"Guitar Fret Noise",
+		"Breath Noise",
+		"Seashore",
+		"Bird Tweet",
+		"Telephone Ring",
+		"Helicopter",
+		"Applause",
+		"Gunshot"
+	};
+}	
+namespace midi{
 	using namespace std;
 	struct inputDevice_t { uint32_t index; string name; string id; };
 	using outputDevice_t = inputDevice_t;
@@ -8,7 +141,7 @@ namespace midi {
 	/****/
 	struct keyDownMessage_t { uint8_t channel, note, velocity; };
 	struct keyUpMessage_t { uint8_t channel, note; };
-	struct programChangeMessage_t { uint8_t channel, program;  };
+	struct programChangeMessage_t { uint8_t channel, program; };
 	using message_t = variant<keyDownMessage_t, keyUpMessage_t, programChangeMessage_t>;
 	/****/
 	struct inputContext {
@@ -34,7 +167,7 @@ namespace midi {
 		/****/
 		inline virtual void getMidiInDevices(midiInputDevices_t&) = 0;
 	};
-	
+
 	struct outputContext {
 		inline virtual const uint32_t getIndex() const = 0;
 		inline virtual const bool getStatus() const = 0;
@@ -119,10 +252,10 @@ namespace midi {
 		inline virtual const bool getStatus() const { return status == MMSYSERR_NOERROR; }
 		inline outputContext_WinMM() {};
 		inline outputContext_WinMM(outputDevice_t const& device) : index(device.index) {
-			status = midiOutOpen(&handle, index, NULL, NULL, CALLBACK_NULL);			
+			status = midiOutOpen(&handle, index, NULL, NULL, CALLBACK_NULL);
 		}
 		inline ~outputContext_WinMM() {
-			if (status == MMSYSERR_NOERROR) {				
+			if (status == MMSYSERR_NOERROR) {
 				midiOutClose(handle);
 			}
 		}
@@ -142,7 +275,7 @@ namespace midi {
 					winMM_message data {.data = { (BYTE)(0xC0 | msg.channel), (BYTE)msg.program, (BYTE)0 } };
 					midiOutShortMsg(handle, data.param);
 				}
-			}, message);
+				}, message);
 		}
 		inline virtual std::string getMidiErrorMessage() {
 			static char buffer[1024];
@@ -231,9 +364,9 @@ namespace midi {
 			auto co = [&]() -> IAsyncAction {
 				auto task = co_await MidiOutPort::FromIdAsync(to_hstring(device.id));
 				if (task) {
-					port = task.as<MidiOutPort>();					
+					port = task.as<MidiOutPort>();
 				}
-			};
+				};
 			co().get();
 		}
 		inline ~outputContext_WinRT() { if (port) port.Close(); }
@@ -241,7 +374,7 @@ namespace midi {
 		inline virtual void sendMessage(message_t const& message) {
 			if (!getStatus()) return;
 			visit(visitor{
-				[&](keyDownMessage_t const& msg) {					
+				[&](keyDownMessage_t const& msg) {
 					port.SendBuffer(MidiNoteOnMessage(msg.channel, msg.note, msg.velocity).RawData());
 				},
 				[&](keyUpMessage_t const& msg) {
@@ -250,7 +383,7 @@ namespace midi {
 				[&](programChangeMessage_t const& msg) {
 					port.SendBuffer(MidiProgramChangeMessage(msg.channel, msg.program).RawData());
 				}
-			}, message);
+				}, message);
 		}
 		inline virtual std::string getMidiErrorMessage() { return "Unknown Error (WinRT)"; }
 		inline virtual void getMidiOutDevices(midiOutputDevices_t& result) {
