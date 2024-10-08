@@ -158,7 +158,7 @@ void draw() {
 		}
 		const char* channel_names[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10","11","12","13","14","15","16" };
 		auto draw_button_array = [&](int& value, const auto& names, const int id = 0, const int* states = nullptr) -> bool {
-			bool has_changes = false;
+			bool dirty = false;
 			for (int i = 0; i < extent_of(names); i++) {
 				bool active = value == i;
 				int styles = 0;
@@ -167,12 +167,23 @@ void draw() {
 				if (states && states[i])
 					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered)), styles++;
 				ImGui::PushID(id + i);
-				if (ImGui::Button(names[i], ImVec2(4, 0))) value = i, has_changes = true;
+				if (ImGui::Button(names[i], ImVec2(4, 0))) value = i, dirty = true;
 				ImGui::PopID();
 				ImGui::PopStyleColor(styles);
 				ImGui::SameLine();
 			}
-			return has_changes;
+			return dirty;
+		};
+		auto draw_twiddle_button = [&](int& value, const int r_min, const int r_max, const int id = 0) {
+			bool dirty = false;
+			ImGui::PushID(id);
+			if (ImGui::Button("<", ImVec2(4, 0))) value = std::max(r_min, value - 1), dirty = true;
+			ImGui::PopID();
+			ImGui::SameLine();
+			ImGui::PushID(id + 1);
+			if (ImGui::Button(">", ImVec2(4, 0))) value = std::min(r_max, value + 1), dirty = true;
+			ImGui::PopID();
+			return dirty;
 		};
 		ImGui::Text("Input");
 		if (!g_midiInContext->getStatus()) {
@@ -211,18 +222,21 @@ void draw() {
 			ImGui::EndCombo();
 		}
 		if (g_midiOutContext) {
-			draw_button_array(g_config.outputChannel, channel_names, 16);
+			bool dirty = draw_button_array(g_config.outputChannel, channel_names, 16);
 			ImGui::Text("Output Channel");
 			if (ImGui::BeginCombo("Output Program", midi::GM_programs[g_config.outputProgram])) {
 				for (int i = 0; i < extent_of(midi::GM_programs); i++) {
 					bool selected = g_config.outputProgram == i;
 					if (ImGui::Selectable(midi::GM_programs[i], &selected)) {
 						g_config.outputProgram = i;
-						g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
+						dirty = true;
 					}
 				}
 				ImGui::EndCombo();
 			}
+			ImGui::SameLine();
+			dirty = draw_twiddle_button(g_config.outputProgram, 0, extent_of(midi::GM_programs), 32);
+			if (dirty) g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
 		}
 		if (ImGui::Button("Refresh")) setup();
 	}
