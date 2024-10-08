@@ -202,9 +202,10 @@ namespace midi{
 				break;
 			case MIM_DATA: {
 				winMM_message message{ .param = (DWORD)dwParam1 };
-				uint8_t velocity = message.data[2], note = message.data[1];
-				if (velocity == 0) ctx->messages.push(keyUpMessage_t{ 0, note }), ctx->messageCV.notify_one();
-				else ctx->messages.push(keyDownMessage_t{ 0, note, velocity }), ctx->messageCV.notify_one();
+				uint8_t velocity = message.data[2], note = message.data[1], status = message.data[0];
+				uint8_t channel = status & 0xF;
+				if (velocity == 0) ctx->messages.push(keyUpMessage_t{ channel, note }), ctx->messageCV.notify_one();
+				else ctx->messages.push(keyDownMessage_t{ channel, note, velocity }), ctx->messageCV.notify_one();
 				break;
 			}
 			default:
