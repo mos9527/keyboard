@@ -34,7 +34,10 @@ inline void __check(bool condition, const std::string& message = "", const std::
 	}
 }
 #define CHECK(EXPR, ...) __check(!!(EXPR), __VA_ARGS__)
-
+// C++ Weekly - Ep 440 - Revisiting Visitors for std::visit - https://www.youtube.com/watch?v=et1fjd8X1ho
+template<typename... T> struct visitor : T... {
+	using T::operator()...;
+};
 template<size_t Rows, size_t Cols, typename Elem = char> struct line_buffer {
 	using column_type = Elem[Cols];
 	using row_type = std::array<column_type, Rows>;

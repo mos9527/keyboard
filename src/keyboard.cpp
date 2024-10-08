@@ -5,20 +5,22 @@
 
 #include "chord.hpp"
 
+#define CONFIG_FILENAME "config"
 struct {
-	const char* FILENAME = "config";
 	int backend = 0;
 	int inputDeviceIndex = 0;
+	int outputDeviceIndex = 0;
+	int outputChannel = 0;
+	int outputProgram = 0;
 	int keyboardKeymap[256]{};
 	void save() {
-		FILE* file = fopen(FILENAME, "wb");
-		if (file) {
-			fwrite(this, sizeof(*this), 1, file);
-			fclose(file);
-		}
+		FILE* file = fopen(CONFIG_FILENAME, "wb");
+		CHECK(file, "Failed to open file for writing");
+		fwrite(this, sizeof(*this), 1, file);
+		fclose(file);		
 	};
 	void load() {
-		FILE* file = fopen(FILENAME, "rb");
+		FILE* file = fopen(CONFIG_FILENAME, "rb");
 		if (file) {
 			fread(this, sizeof(*this), 1, file);
 			fclose(file);
@@ -30,29 +32,56 @@ struct {
 } g_config;
 /****/
 typedef std::unique_ptr<midi::inputContext> midiInContext_t;
-const char* MIDI_BACKENDS[] = { "WinMM (Legacy)", "WinRT" };
+typedef std::unique_ptr<midi::outputContext> midiOutContext_t;
+const char* MIDI_BACKENDS[] = { 
+	"WinMM (Legacy)",
+#ifdef WINRT
+	"WinRT" 
+#endif
+};
 template<typename... T> midiInContext_t make_midi_input_context(T const&... args) {
 	switch (g_config.backend)
 	{
+#ifdef WINRT
 	case 1:
 		return std::make_unique<midi::inputContext_WinRT>(args...);
+#endif
 	case 0:
 	default:
 		return std::make_unique<midi::inputContext_WinMM>(args...);
 	}
 }
+template<typename... T> midiOutContext_t make_midi_output_context(T const&... args) {
+	switch (g_config.backend)
+	{
+#ifdef WINRT
+	case 1:
+		return std::make_unique<midi::outputContext_WinRT>(args...);
+#endif
+	case 0:
+	default:
+		return std::make_unique<midi::outputContext_WinMM>(args...);
+	}
+}
 /****/
 midiInContext_t g_midiInContext;
-midi::midiInputDevices_t g_devices;
+midiOutContext_t g_midiOutContext;
+midi::midiInputDevices_t g_midiInDevices;
+midi::midiOutputDevices_t g_midiOutDevices;
 chord::midi_key_states_t g_keyboardState;
 /****/
 line_buffer<256, 256> g_chordNames;
 /****/
 void setup() {
 	g_midiInContext = make_midi_input_context();
-	g_midiInContext->getMidiInDevices(g_devices);
-	if (g_devices.size())
-		g_midiInContext = make_midi_input_context(g_devices[0]);
+	g_midiInContext->getMidiInDevices(g_midiInDevices);
+	if (g_midiInDevices.size())
+		g_midiInContext = make_midi_input_context(g_midiInDevices[std::min(g_midiInDevices.size() - 1, (size_t)g_config.inputDeviceIndex)]);
+
+	g_midiOutContext = make_midi_output_context();
+	g_midiOutContext->getMidiOutDevices(g_midiOutDevices);
+	if (g_midiOutDevices.size())
+		g_midiOutContext = make_midi_output_context(g_midiOutDevices[std::min(g_midiOutDevices.size() - 1, (size_t)g_config.outputDeviceIndex)]);
 }
 void poll_input() {
 	auto on_key_event = [&](uint8_t velocity, uint8_t key) {
@@ -73,15 +102,20 @@ void poll_input() {
 			auto pool = g_midiInContext->pollMessage();
 			if (pool) {
 				auto& message = pool.value();
-				std::visit([&](auto&& arg) {
-					using T = std::decay_t<decltype(arg)>;
-					if constexpr (std::is_same_v<T, keyDownMessage_t>) {
-						on_key_event(arg.velocity, arg.note);
-					}
-					else if constexpr (std::is_same_v<T, keyUpMessage_t>) {
-						on_key_event(0, arg.note);
-					}
+				std::visit(visitor{
+					[&](keyDownMessage_t& msg) {
+						msg.channel = g_config.outputChannel;
+						on_key_event(msg.velocity, msg.note);
+					},
+					[&](keyUpMessage_t& msg) {
+						msg.channel = g_config.outputChannel;
+						on_key_event(0, msg.note);
+					},
+					[&](programChangeMessage_t& msg) {}
 					}, message);
+				if (g_midiOutContext) {
+					g_midiOutContext->sendMessage(message);
+				}
 			}
 		}
 	}
@@ -90,16 +124,17 @@ void draw() {
 	ImGui::SetNextWindowPos({ 0,0 });
 	ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 	ImGui::Begin("keyboard");
-	ImGui::Separator();	
-	if (ImGui::CollapsingHeader("Hardware", ImGuiTreeNodeFlags_DefaultOpen)) {
-		if (g_midiInContext->getStatus()) {
-			ImGui::TextColored(ImColor(0, 255, 0), "Connected: %s", g_devices[g_midiInContext->getIndex()].name.c_str());
-		}
-		else {
-			static std::string errorMessage = g_midiInContext->getMidiErrorMessage();
-			ImGui::TextColored(ImColor(255, 0, 0), "ERROR: %s", errorMessage.c_str());
-		}
-		if (ImGui::BeginCombo("Backends", MIDI_BACKENDS[g_config.backend])) {
+	ImGui::Separator();
+	if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_None)) {
+		if (ImGui::Button("Save")) g_config.save();
+		ImGui::SameLine();
+		if (ImGui::Button("Load")) g_config.load();
+		ImGui::SameLine();
+		if (ImGui::Button("Reset")) g_config.reset(), setup();
+	}
+
+	if (ImGui::CollapsingHeader("Hardware", ImGuiTreeNodeFlags_None)) {
+		if (ImGui::BeginCombo("Backend", MIDI_BACKENDS[g_config.backend])) {
 			for (int i = 0; i < IM_ARRAYSIZE(MIDI_BACKENDS); i++) {
 				bool selected = g_config.backend == i;
 				if (ImGui::Selectable(MIDI_BACKENDS[i], &selected)) {
@@ -109,21 +144,47 @@ void draw() {
 			}
 			ImGui::EndCombo();
 		}
+		ImGui::Separator();
+		if (!g_midiInContext->getStatus()) {
+			static std::string errorMessage = g_midiInContext->getMidiErrorMessage();
+			ImGui::TextColored(ImColor(255, 0, 0), "ERROR: %s", errorMessage.c_str());
+		}
 		if (ImGui::BeginCombo(
-			"Devices",
-			(g_devices.size() && g_midiInContext ? g_devices[g_midiInContext->getIndex()].name.c_str() : "Select Device")
+			"Input Device",
+			(g_midiInDevices.size() && g_midiInContext ? g_midiInDevices[g_midiInContext->getIndex()].name.c_str() : "Select Device"),
+			ImGuiComboFlags_PopupAlignLeft
 		)) {
-			for (auto& [index, name, id] : g_devices) {
+			for (auto& [index, name, id] : g_midiInDevices) {
 				bool selected = g_midiInContext && g_midiInContext->getIndex() == index;
 				if (ImGui::Selectable(name.c_str(), &selected))
-					g_midiInContext = make_midi_input_context(g_devices[index]), g_config.inputDeviceIndex = index;
+					g_midiInContext = make_midi_input_context(g_midiInDevices[index]), g_config.inputDeviceIndex = index;
 			}
 			ImGui::EndCombo();
 		}
-		ImGui::SameLine();  ImGui::Spacing();  ImGui::SameLine();
-		if (ImGui::Button("Refresh")) {
-			g_midiInContext->getMidiInDevices(g_devices);
+		ImGui::Separator();
+		if (!g_midiOutContext->getStatus()) {
+			static std::string errorMessage = g_midiOutContext->getMidiErrorMessage();
+			ImGui::TextColored(ImColor(255, 0, 0), "ERROR: %s", errorMessage.c_str());
 		}
+		if (ImGui::BeginCombo(
+			"Output Device",
+			(g_midiOutDevices.size() && g_midiOutContext ? g_midiOutDevices[g_midiOutContext->getIndex()].name.c_str() : "Select Device"),
+			ImGuiComboFlags_PopupAlignLeft
+		)) {
+			for (auto& [index, name, id] : g_midiOutDevices) {
+				bool selected = g_midiOutContext && g_midiOutContext->getIndex() == index;
+				if (ImGui::Selectable(name.c_str(), &selected))
+					g_midiOutContext = make_midi_output_context(g_midiOutDevices[index]), g_config.outputDeviceIndex = index;
+			}
+			ImGui::EndCombo();
+		}
+		if (g_midiOutContext) {
+			ImGui::SliderInt("Output Channel", &g_config.outputChannel, 0, 15);			
+			if (ImGui::SliderInt("Output Program", &g_config.outputProgram, 0, 127)) {
+				g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
+			}
+		}
+		if (ImGui::Button("Refresh")) setup();
 	}
 	if (ImGui::CollapsingHeader("Keyboard", ImGuiTreeNodeFlags_DefaultOpen)) {
 		const ImVec2 whiteKeySize(6, 8);
@@ -136,6 +197,7 @@ void draw() {
 		static int offsetKey = 16;
 		ImDrawList* draw_list = ImGui::GetWindowDrawList();
 		ImVec2 pos = ImGui::GetCursorScreenPos();
+		ImVec2 cpos = ImGui::GetCursorPos();
 		static int activeKey = 0;
 		auto draw_layer = [&](bool isBlack) {
 			int offsetX = 0;
@@ -200,7 +262,7 @@ void draw() {
 		ImGui::SetCursorPos(pos);
 		draw_layer(true);
 		ImGui::SetCursorPosX(0);
-		ImGui::SetCursorPosY(19);
+		ImGui::SetCursorPosY(cpos.y + 14);
 		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 		int numDisplay = ImGui::GetContentRegionAvailWidth() / whiteKeySize.x;
 		ImGui::SliderInt("##Start", &offsetKey, 0, numKeys - numDisplay);
@@ -230,13 +292,6 @@ void draw() {
 			ImGui::EndPopup();
 		}
 	}
-	if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-		if (ImGui::Button("Save")) g_config.save();
-		ImGui::SameLine();
-		if (ImGui::Button("Load")) g_config.load();
-		ImGui::SameLine();
-		if (ImGui::Button("Reset")) g_config.reset();
-	}
 	if (ImGui::CollapsingHeader("Chords", ImGuiTreeNodeFlags_DefaultOpen)) {
 		g_chordNames.resize(chord::format<char[256]>(g_keyboardState, g_chordNames.span()));
 		for (auto& line : g_chordNames) {
@@ -259,6 +314,7 @@ int main() {
 	ImTui_ImplText_Init();
 	ImGui::GetStyle().ScrollbarSize = 1;
 	ImGui::GetStyle().GrabMinSize = 1.0f;
+	g_config.load();
 	setup();
 	while (true) {
 		;
