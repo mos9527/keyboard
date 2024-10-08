@@ -8,6 +8,7 @@
 #define CONFIG_FILENAME "config"
 struct {
 	int backend = 0;
+	int inputChannel = 0;
 	int inputDeviceIndex = 0;
 	int outputDeviceIndex = 0;
 	int outputChannel = 0;
@@ -17,7 +18,7 @@ struct {
 		FILE* file = fopen(CONFIG_FILENAME, "wb");
 		CHECK(file, "Failed to open file for writing");
 		fwrite(this, sizeof(*this), 1, file);
-		fclose(file);		
+		fclose(file);
 	};
 	void load() {
 		FILE* file = fopen(CONFIG_FILENAME, "rb");
@@ -33,10 +34,10 @@ struct {
 /****/
 typedef std::unique_ptr<midi::inputContext> midiInContext_t;
 typedef std::unique_ptr<midi::outputContext> midiOutContext_t;
-const char* MIDI_BACKENDS[] = { 
+const char* MIDI_BACKENDS[] = {
 	"WinMM (Legacy)",
 #ifdef WINRT
-	"WinRT" 
+	"WinRT"
 #endif
 };
 template<typename... T> midiInContext_t make_midi_input_context(T const&... args) {
@@ -69,6 +70,8 @@ midiOutContext_t g_midiOutContext;
 midi::midiInputDevices_t g_midiInDevices;
 midi::midiOutputDevices_t g_midiOutDevices;
 chord::midi_key_states_t g_keyboardState;
+const uint8_t ACTIVE_INPUT_FRAMES = 10;
+std::array<int, 16> g_activeInputs;
 /****/
 line_buffer<256, 256> g_chordNames;
 /****/
@@ -86,8 +89,7 @@ void setup() {
 		g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
 }
 void poll_input() {
-	auto on_key_event = [&](uint8_t velocity, uint8_t key) {
-		g_keyboardState[key] = velocity;
+	auto map_midi_to_keystroke = [&](uint8_t velocity, uint8_t key) {
 		if (g_config.keyboardKeymap[key]) {
 			INPUT input{};
 			input.type = INPUT_KEYBOARD;
@@ -104,19 +106,27 @@ void poll_input() {
 			auto pool = g_midiInContext->pollMessage();
 			if (pool) {
 				auto& message = pool.value();
+				std::optional<midi::message_t> to_send;
 				std::visit(visitor{
 					[&](keyDownMessage_t& msg) {
-						msg.channel = g_config.outputChannel;
-						on_key_event(msg.velocity, msg.note);
+						g_activeInputs[msg.channel] = ACTIVE_INPUT_FRAMES;
+						if (msg.channel == g_config.inputChannel)
+							g_keyboardState[msg.note] = msg.velocity,
+							msg.channel = g_config.outputChannel,
+							to_send = msg;
+						map_midi_to_keystroke(msg.velocity, msg.note);
 					},
 					[&](keyUpMessage_t& msg) {
-						msg.channel = g_config.outputChannel;
-						on_key_event(0, msg.note);
-					},
-					[&](programChangeMessage_t& msg) {}
-					}, message);
-				if (g_midiOutContext) {
-					g_midiOutContext->sendMessage(message);
+						g_activeInputs[msg.channel] = ACTIVE_INPUT_FRAMES;
+						if (msg.channel == g_config.inputChannel)
+							g_keyboardState[msg.note] = 0,
+							msg.channel = g_config.outputChannel,
+							to_send = msg;
+						map_midi_to_keystroke(0, msg.note);
+					}
+				}, message);
+				if (g_midiOutContext && to_send.has_value()) {
+					g_midiOutContext->sendMessage(to_send.value());
 				}
 			}
 		}
@@ -125,7 +135,7 @@ void poll_input() {
 void draw() {
 	ImGui::SetNextWindowPos({ 0,0 });
 	ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-	ImGui::Begin("keyboard");	
+	ImGui::Begin("keyboard");
 	if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_None)) {
 		if (ImGui::Button("Save")) g_config.save();
 		ImGui::SameLine();
@@ -146,6 +156,20 @@ void draw() {
 			}
 			ImGui::EndCombo();
 		}
+		const char* channel_names[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10","11","12","13","14","15","16" };
+		auto draw_button_array = [&](int& value, const auto& names, const int* states = nullptr) {
+			for (int i = 0; i < extent_of(names); i++) {
+				bool active = value == i;
+				int styles = 0;
+				if (active)
+					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive)), styles++;
+				if (states && states[i])
+					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered)), styles++;
+				if (ImGui::Button(names[i], ImVec2(4, 0))) value = i;
+				ImGui::PopStyleColor(styles);
+				ImGui::SameLine();
+			}
+		};
 		ImGui::Text("Input");
 		if (!g_midiInContext->getStatus()) {
 			static std::string errorMessage = g_midiInContext->getMidiErrorMessage();
@@ -163,6 +187,8 @@ void draw() {
 			}
 			ImGui::EndCombo();
 		}
+		draw_button_array(g_config.inputChannel, channel_names, g_activeInputs.data());
+		ImGui::Text("Input Channel");
 		ImGui::Text("Output");
 		if (!g_midiOutContext->getStatus()) {
 			static std::string errorMessage = g_midiOutContext->getMidiErrorMessage();
@@ -181,14 +207,7 @@ void draw() {
 			ImGui::EndCombo();
 		}
 		if (g_midiOutContext) {
-			const char* channel_names[] = { "0","1", "2", "3", "4", "5", "6", "7", "8", "9", "10","11","12","13","14","15" };
-			for (int i = 0; i < extent_of(channel_names); i++) {
-				bool active = g_config.outputChannel == i;
-				if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-				if (ImGui::Button(channel_names[i], ImVec2(5,0))) g_config.outputChannel = i;
-				if (active) ImGui::PopStyleColor();
-				ImGui::SameLine();
-			}
+			draw_button_array(g_config.outputChannel, channel_names);
 			ImGui::Text("Output Channel");
 			if (ImGui::BeginCombo("Output Program", midi::GM_programs[g_config.outputProgram])) {
 				for (int i = 0; i < extent_of(midi::GM_programs); i++) {
@@ -317,6 +336,9 @@ void draw() {
 	}
 	ImGui::End();
 }
+void refresh() {
+	for (auto& frame : g_activeInputs) frame--, frame = std::max(0, frame);
+}
 void cleanup() {
 	if (g_midiInContext) g_midiInContext.reset();
 }
@@ -334,10 +356,10 @@ int main() {
 	g_config.load();
 	setup();
 	while (true) {
-		;
 		ImTui_ImplNcurses_NewFrame();
 		ImTui_ImplText_NewFrame();
 		ImGui::NewFrame();
+		refresh();
 		poll_input();
 		draw();
 		ImGui::Render();

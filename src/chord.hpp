@@ -39,7 +39,7 @@ namespace chord {
 	/****/
 	typedef pair<key_t, chord_arr_t> chord_item_t;
 	const char* key_table[] = { "C" ,"Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B" };
-	const char* interval_table[] = { "Oct","min 2nd","Maj 2nd","min 3rd","Maj 3rd","P4","Tritone","P5","min 6th","Maj 6th","min 7th","Maj 7th" };
+	const char* interval_table[] = { "Oct","min 2nd","Maj 2nd","min 3rd","Maj 3rd","Perfect 4th","Tritone","Perfect 5th","min 6th","Maj 6th","min 7th","Maj 7th" };
 	const chord_item_t chord_table[] = {
 			{{1, 3, 4}, chord_arr_t{chord_t{ chord_t::ROOT_BASS,"%smMaj9/ %s", 0},}},
 			{{1, 3, 4, 6}, chord_arr_t{chord_t{ chord_t::ROOT_BASS,"%smM11(no5)/ %s", 0},}},
@@ -552,7 +552,7 @@ namespace chord {
 				sprintf(*line_it, "%s %s", key_table[bass_k],interval_table[crange[1]]), line_it++;
 		}
 		// scales
-		if (scale_v) {
+		if (scale_v && keys.size() > 1) {
 			for (auto& v : scale_v->second) {
 				uint8_t nth_k = (keys[0] + chord_keys[v.nth_root]) % 12;
 				v.format_to_string(*line_it, key_table[bass_k], key_table[nth_k]);

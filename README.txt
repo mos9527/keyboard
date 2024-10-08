@@ -20,3 +20,5 @@ references
 * https://kennykerrca.wordpress.com/2018/03/01/cppwinrt-understanding-async/
 * https://kennykerrca.wordpress.com/2018/03/09/cppwinrt-producing-async-objects/
 * https://devblogs.microsoft.com/oldnewthing/20210809-00/?p=105539
+* https://www.recordingblogs.com/wiki/midi-system-exclusive-message
+* https://www.recordingblogs.com/wiki/music-theory-index

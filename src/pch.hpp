@@ -37,8 +37,13 @@ inline void __check(bool condition, const std::string& message = "", const std::
 // https://stackoverflow.com/a/22713396
 template<typename T, size_t N> constexpr size_t extent_of(T(&)[N]) { return N; };
 // C++ Weekly - Ep 440 - Revisiting Visitors for std::visit - https://www.youtube.com/watch?v=et1fjd8X1ho
+// This also demonstrates default visitor behavior for unhandled types
+template<typename Arg, typename... T> concept none_invocable = (!std::is_invocable<T, Arg&>::value && ...);
 template<typename... T> struct visitor : T... {
 	using T::operator()...;
+	template<typename Arg> requires none_invocable<Arg, T...> auto operator()(Arg&) {
+		/* nop */
+	};
 };
 template<size_t Rows, size_t Cols, typename Elem = char> struct line_buffer {
 	using column_type = Elem[Cols];
