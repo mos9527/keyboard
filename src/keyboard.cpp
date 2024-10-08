@@ -157,7 +157,8 @@ void draw() {
 			ImGui::EndCombo();
 		}
 		const char* channel_names[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10","11","12","13","14","15","16" };
-		auto draw_button_array = [&](int& value, const auto& names, const int* states = nullptr) {
+		auto draw_button_array = [&](int& value, const auto& names, const int id = 0, const int* states = nullptr) -> bool {
+			bool has_changes = false;
 			for (int i = 0; i < extent_of(names); i++) {
 				bool active = value == i;
 				int styles = 0;
@@ -165,10 +166,13 @@ void draw() {
 					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive)), styles++;
 				if (states && states[i])
 					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered)), styles++;
-				if (ImGui::Button(names[i], ImVec2(4, 0))) value = i;
+				ImGui::PushID(id + i);
+				if (ImGui::Button(names[i], ImVec2(4, 0))) value = i, has_changes = true;
+				ImGui::PopID();
 				ImGui::PopStyleColor(styles);
 				ImGui::SameLine();
 			}
+			return has_changes;
 		};
 		ImGui::Text("Input");
 		if (!g_midiInContext->getStatus()) {
@@ -187,7 +191,7 @@ void draw() {
 			}
 			ImGui::EndCombo();
 		}
-		draw_button_array(g_config.inputChannel, channel_names, g_activeInputs.data());
+		draw_button_array(g_config.inputChannel, channel_names, 0, g_activeInputs.data());
 		ImGui::Text("Input Channel");
 		ImGui::Text("Output");
 		if (!g_midiOutContext->getStatus()) {
@@ -207,7 +211,7 @@ void draw() {
 			ImGui::EndCombo();
 		}
 		if (g_midiOutContext) {
-			draw_button_array(g_config.outputChannel, channel_names);
+			draw_button_array(g_config.outputChannel, channel_names, 16);
 			ImGui::Text("Output Channel");
 			if (ImGui::BeginCombo("Output Program", midi::GM_programs[g_config.outputProgram])) {
 				for (int i = 0; i < extent_of(midi::GM_programs); i++) {
