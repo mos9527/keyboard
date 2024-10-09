@@ -483,33 +483,33 @@ namespace chord {
 			{{9, 11}, chord_arr_t{chord_t{ chord_t::ROOT_BASS,"%sm(add9)/ %s", 0},}}
 		};
 	const chord_item_t scale_table[] = {
-			{{1, 3, 4, 6, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sDiminished", 0},chord_t{ chord_t::NONE,"Half - Whole", 0},}},
-			{{1, 3, 4, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sAltered", 0},chord_t{ chord_t::NONE,"Super Locrian", 0},}},
-			{{1, 3, 5, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sLocrian", 0},}},
-			{{1, 3, 5, 7, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sPhrygian", 0},}},
-			{{1, 3, 5, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sDorian(b2)", 0},}},
-			{{1, 4, 5, 7, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sMixolydian(b9b13)", 0},chord_t{ chord_t::NONE,"Phrygian Dominant", 0},}},
-			{{2, 3, 4, 5, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sBebop Minor", 0},}},
-			{{2, 3, 5, 6, 8, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%sDiminished", 0},chord_t{ chord_t::NONE,"Whole - Half", 0},}},
-			{{2, 3, 5, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sLocrian Natural(9)", 0},}},
-			{{2, 3, 5, 7, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sAeolian", 0},chord_t{ chord_t::NONE,"Natural Minor", 0},}},
-			{{2, 3, 5, 7, 8, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%sHarmonic Minor", 0},}},
-			{{2, 3, 5, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sDorian", 0},}},
-			{{2, 3, 5, 7, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%sMelodic Minor", 0},}},
-			{{2, 4, 5, 7, 8, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%sBebop Major", 0},}},
-			{{2, 4, 5, 7, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sMixolydian(b13)", 0},chord_t{ chord_t::NONE,"Melodic Major(down)", 0},}},
-			{{2, 4, 5, 7, 8, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%sHarmonic Major", 0},}},
-			{{2, 4, 5, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sMixolydian", 0},}},
-			{{2, 4, 5, 7, 9, 10, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%sBebop Dominant", 0},}},
-			{{2, 4, 5, 7, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%sIonian", 0},chord_t{ chord_t::NONE,"Natural Major", 0},}},
-			{{2, 4, 6, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sLydian Dominant", 0},}},
-			{{2, 4, 6, 7, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%sLydian", 0},}},
-			{{2, 4, 6, 8, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%sLydian Augmented", 0},}},
-			{{2, 4, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sWhole Tone", 0},}},
-			{{2, 4, 7, 9}, chord_arr_t{chord_t{ chord_t::BASS,"%sPentatonic Major", 0},}},
-			{{3, 4, 5, 6, 7, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sBlues(add3)", 0},}},
-			{{3, 5, 6, 7, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sBlues", 0},}},
-			{{3, 5, 7, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%sPentatonic Minor", 0},}}
+			{{1, 3, 4, 6, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Diminished", 0},chord_t{ chord_t::NONE,"Half - Whole", 0},}},
+			{{1, 3, 4, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Altered", 0},chord_t{ chord_t::NONE,"Super Locrian", 0},}},
+			{{1, 3, 5, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Locrian", 0},}},
+			{{1, 3, 5, 7, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Phrygian", 0},}},
+			{{1, 3, 5, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Dorian(b2)", 0},}},
+			{{1, 4, 5, 7, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Mixolydian(b9b13)", 0},chord_t{ chord_t::NONE,"Phrygian Dominant", 0},}},
+			{{2, 3, 4, 5, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Bebop Minor", 0},}},
+			{{2, 3, 5, 6, 8, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%s Diminished", 0},chord_t{ chord_t::NONE,"Whole - Half", 0},}},
+			{{2, 3, 5, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Locrian Natural(9)", 0},}},
+			{{2, 3, 5, 7, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Aeolian", 0},chord_t{ chord_t::NONE,"Natural Minor", 0},}},
+			{{2, 3, 5, 7, 8, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%s Harmonic Minor", 0},}},
+			{{2, 3, 5, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Dorian", 0},}},
+			{{2, 3, 5, 7, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%s Melodic Minor", 0},}},
+			{{2, 4, 5, 7, 8, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%s Bebop Major", 0},}},
+			{{2, 4, 5, 7, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Mixolydian(b13)", 0},chord_t{ chord_t::NONE,"Melodic Major(down)", 0},}},
+			{{2, 4, 5, 7, 8, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%s Harmonic Major", 0},}},
+			{{2, 4, 5, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Mixolydian", 0},}},
+			{{2, 4, 5, 7, 9, 10, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%s Bebop Dominant", 0},}},
+			{{2, 4, 5, 7, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%s Ionian", 0},chord_t{ chord_t::NONE,"Natural Major", 0},}},
+			{{2, 4, 6, 7, 9, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Lydian Dominant", 0},}},
+			{{2, 4, 6, 7, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%s Lydian", 0},}},
+			{{2, 4, 6, 8, 9, 11}, chord_arr_t{chord_t{ chord_t::BASS,"%s Lydian Augmented", 0},}},
+			{{2, 4, 6, 8, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Whole Tone", 0},}},
+			{{2, 4, 7, 9}, chord_arr_t{chord_t{ chord_t::BASS,"%s Pentatonic Major", 0},}},
+			{{3, 4, 5, 6, 7, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Blues(add3)", 0},}},
+			{{3, 5, 6, 7, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Blues", 0},}},
+			{{3, 5, 7, 10}, chord_arr_t{chord_t{ chord_t::BASS,"%s Pentatonic Minor", 0},}}
 		};
 }
 namespace chord {
@@ -561,7 +561,7 @@ namespace chord {
 		}
 		// single notes
 		if (keys.size() == 1) {
-			sprintf(*line_it, "%s", key_table[bass_k]);
+			sprintf(*line_it, "(%s)", key_table[bass_k]);
 			line_it++;
 		}
 		return line_it - lines.begin();

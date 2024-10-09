@@ -11,7 +11,7 @@ struct {
 	int inputChannel = 0;
 	int inputDeviceIndex = 0;
 	int outputDeviceIndex = 0;
-	int outputChannel = 0;	
+	int outputChannel = 0;
 	int keyboardKeymap[256]{};
 	void save() {
 		FILE* file = fopen(CONFIG_FILENAME, "wb");
@@ -69,6 +69,7 @@ midiOutContext_t g_midiOutContext;
 midi::midiInputDevices_t g_midiInDevices;
 midi::midiOutputDevices_t g_midiOutDevices;
 struct {
+	bool muted = false, solo = false, hold = false;
 	int program;
 	chord::midi_key_states_t keys;
 	struct {
@@ -77,7 +78,7 @@ struct {
 		int pedal = 0;
 	} controls;
 } g_midiChannelStates[16];
-const uint8_t ACTIVE_INPUT_FRAMES = 10;
+const uint8_t ACTIVE_INPUT_FRAMES = 3;
 std::array<int, 16> g_activeInputs;
 /****/
 line_buffer<256, 256> g_chordNames;
@@ -93,7 +94,7 @@ void setup() {
 	if (g_midiOutDevices.size())
 		g_midiOutContext = make_midi_output_context(g_midiOutDevices[std::min(g_midiOutDevices.size() - 1, (size_t)g_config.outputDeviceIndex)]);
 	if (g_midiInContext->getStatus())
-		g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_midiChannelStates[g_config.outputChannel].program});
+		g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_midiChannelStates[g_config.outputChannel].program });
 }
 void poll_input() {
 	auto map_midi_to_keystroke = [&](uint8_t velocity, uint8_t key) {
@@ -112,38 +113,49 @@ void poll_input() {
 		if (g_midiInContext->getStatus()) {
 			while (auto pool = g_midiInContext->pollMessage()) {
 				auto& message = pool.value();
+				bool passthrough = true;
 				std::visit(visitor{
-					[&](keyDownMessage_t& msg) {					
-						g_midiChannelStates[msg.channel].keys[msg.note] = msg.velocity;
-						if (msg.channel == g_config.inputChannel)							
+					[&](keyDownMessage_t& msg) {
+						if (!g_midiChannelStates[msg.channel].hold)
+							g_midiChannelStates[msg.channel].keys[msg.note] = msg.velocity;
+						else {
+							if (msg.velocity == 0) passthrough = false;
+							else g_midiChannelStates[msg.channel].keys[msg.note] = msg.velocity;
+						}
+						if (msg.channel == g_config.inputChannel)
 							map_midi_to_keystroke(msg.velocity, msg.note);
+						if (g_midiChannelStates[msg.channel].muted)
+							passthrough = false;
 					},
 					[&](keyUpMessage_t& msg) {
-						g_midiChannelStates[msg.channel].keys[msg.note] = msg.velocity;
-						if (msg.channel == g_config.inputChannel)							
+						if (!g_midiChannelStates[msg.channel].hold)
+							g_midiChannelStates[msg.channel].keys[msg.note] = msg.velocity;
+						else
+							passthrough = false;
+						if (msg.channel == g_config.inputChannel)
 							map_midi_to_keystroke(0, msg.note);
 					},
 					[&](pitchWheelMessage_t& msg) {
 						g_midiChannelStates[msg.channel].controls.pitchBend = msg.level;
 					},
-					[&](controllerMessage_t& msg) {						
+					[&](controllerMessage_t& msg) {
 						if (msg.controller == 1) g_midiChannelStates[msg.channel].controls.modulation = msg.value;
 						if (msg.controller == 64) g_midiChannelStates[msg.channel].controls.pedal = msg.value;
 					},
 					[&](programChangeMessage_t& msg) {
 						g_midiChannelStates[msg.channel].program = msg.program;
 					}
-				}, message);
+					}, message);
 				if (g_midiOutContext) {
 					std::visit(visitor{
-						[&] (auto& msg) {
+						[&](auto& msg) {
 							constexpr bool channel_type = requires() { msg.channel; };
 							if constexpr (channel_type) {
 								g_activeInputs[msg.channel] = ACTIVE_INPUT_FRAMES;
 							}
 						},
-					}, message);
-					g_midiOutContext->sendMessage(message);
+						}, message);
+					if (passthrough) g_midiOutContext->sendMessage(message);
 				}
 			}
 		}
@@ -180,7 +192,7 @@ void draw() {
 				bool active = value == i;
 				int styles = 0;
 				if (active)
-					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive)), styles++;
+					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg)), styles++;
 				if (states && states[i])
 					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered)), styles++;
 				ImGui::PushID(id + i);
@@ -260,8 +272,39 @@ void draw() {
 			}
 			ImGui::SameLine();
 			dirty |= draw_twiddle_button(program, 0, extent_of(midi::GM_programs), 32);
+			auto& muted = g_midiChannelStates[g_config.outputChannel].muted;
+			auto& solo = g_midiChannelStates[g_config.outputChannel].solo;
+			auto& hold = g_midiChannelStates[g_config.outputChannel].hold;
+			auto release_all_keys = [&](int channel) {
+				for (int i = 0; i < 128; i++) {
+					if (g_midiChannelStates[channel].keys[i] > 0) {
+						g_midiOutContext->sendMessage(midi::keyUpMessage_t{ (BYTE)channel, (BYTE)i, 0 });
+						g_midiChannelStates[channel].keys[i] = 0;
+					}
+				}
+				};
+			auto set_channel_mute = [&](int channel, bool mute) {
+				g_midiChannelStates[channel].muted = mute;
+				if (mute) release_all_keys(channel);
+				};
+			ImGui::Checkbox("Mute", &muted); ImGui::SameLine();
+			if (ImGui::Checkbox("Solo", &solo)) {
+				if (!solo) for (int i = 0; i < 16; i++) set_channel_mute(i, false);
+				else {
+					for (int i = 0; i < 16; i++) set_channel_mute(i, true), g_midiChannelStates[i].solo = false;
+					muted = false, solo = true;
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Checkbox("Hold", &hold)) {
+				if (!hold) release_all_keys(g_config.outputChannel);
+			}
 			if (dirty) g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)program });
 		}
+		static bool sync_input_output_chn_select = true;
+		ImGui::Checkbox("Sync Input/Output Channel Selection", &sync_input_output_chn_select);
+		ImGui::SameLine();
+		if (sync_input_output_chn_select) g_config.outputChannel = g_config.inputChannel;
 		if (ImGui::Button("Refresh")) setup();
 	}
 	if (ImGui::CollapsingHeader("Keyboard", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -418,10 +461,10 @@ int main() {
 	while (true) {
 		refresh();
 		poll_input();
-}
+	}
 	cleanup();
 #endif // ENABLE_UI
 
 
 	return 0;
-}
+	}
