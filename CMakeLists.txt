@@ -26,6 +26,7 @@ file(
 # Add source to this project's executable.
 add_executable (keyboard ${SOURCES})
 add_compile_definitions(WINRT)
+add_compile_definitions(ENABLE_UI)
 target_precompile_headers(keyboard PUBLIC "src/pch.hpp")
 target_include_directories(keyboard PRIVATE PDCurses)
 target_include_directories(keyboard PRIVATE "contrib/imtui/include")

@@ -22,3 +22,6 @@ references
 * https://devblogs.microsoft.com/oldnewthing/20210809-00/?p=105539
 * https://www.recordingblogs.com/wiki/midi-system-exclusive-message
 * https://www.recordingblogs.com/wiki/music-theory-index
+* https://www.recordingblogs.com/wiki/status-byte-of-a-midi-message
+* https://www.recordingblogs.com/wiki/midi-voice-messages
+

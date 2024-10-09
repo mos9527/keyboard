@@ -103,30 +103,32 @@ void poll_input() {
 	using namespace midi;
 	if (g_midiInContext) {
 		if (g_midiInContext->getStatus()) {
-			auto pool = g_midiInContext->pollMessage();
-			if (pool) {
+			while (auto pool = g_midiInContext->pollMessage()) {
 				auto& message = pool.value();
-				std::optional<midi::message_t> to_send;
 				std::visit(visitor{
-					[&](keyDownMessage_t& msg) {
-						g_activeInputs[msg.channel] = ACTIVE_INPUT_FRAMES;
+					[&](keyDownMessage_t& msg) {						
 						if (msg.channel == g_config.inputChannel)
-							g_keyboardState[msg.note] = msg.velocity,
-							msg.channel = g_config.outputChannel,
-							to_send = msg;
+							g_keyboardState[msg.note] = msg.velocity;
 						map_midi_to_keystroke(msg.velocity, msg.note);
 					},
 					[&](keyUpMessage_t& msg) {
-						g_activeInputs[msg.channel] = ACTIVE_INPUT_FRAMES;
 						if (msg.channel == g_config.inputChannel)
-							g_keyboardState[msg.note] = 0,
-							msg.channel = g_config.outputChannel,
-							to_send = msg;
+							g_keyboardState[msg.note] = 0;
 						map_midi_to_keystroke(0, msg.note);
-					}
-				}, message);
-				if (g_midiOutContext && to_send.has_value()) {
-					g_midiOutContext->sendMessage(to_send.value());
+					},
+					}, message);
+				if (g_midiOutContext) {
+					std::visit(visitor{
+						[&] (auto& msg) {
+							constexpr bool channel_type = requires() { msg.channel; };
+							if constexpr (channel_type) {
+								g_activeInputs[msg.channel] = ACTIVE_INPUT_FRAMES;
+								if (msg.channel == g_config.inputChannel)
+									msg.channel = g_config.outputChannel,
+									g_midiOutContext->sendMessage(msg);
+							}
+						},
+						}, message);
 				}
 			}
 		}
@@ -173,7 +175,7 @@ void draw() {
 				ImGui::SameLine();
 			}
 			return dirty;
-		};
+			};
 		auto draw_twiddle_button = [&](int& value, const int r_min, const int r_max, const int id = 0) {
 			bool dirty = false;
 			ImGui::PushID(id);
@@ -184,7 +186,7 @@ void draw() {
 			if (ImGui::Button(">", ImVec2(4, 0))) value = std::min(r_max, value + 1), dirty = true;
 			ImGui::PopID();
 			return dirty;
-		};
+			};
 		ImGui::Text("Input");
 		if (!g_midiInContext->getStatus()) {
 			static std::string errorMessage = g_midiInContext->getMidiErrorMessage();
@@ -235,7 +237,7 @@ void draw() {
 				ImGui::EndCombo();
 			}
 			ImGui::SameLine();
-			dirty = draw_twiddle_button(g_config.outputProgram, 0, extent_of(midi::GM_programs), 32);
+			dirty |= draw_twiddle_button(g_config.outputProgram, 0, extent_of(midi::GM_programs), 32);
 			if (dirty) g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
 		}
 		if (ImGui::Button("Refresh")) setup();
@@ -365,6 +367,7 @@ int main() {
 	winrt::init_apartment();
 #endif
 	SetConsoleOutputCP(65001);
+#ifdef ENABLE_UI
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	auto screen = ImTui_ImplNcurses_Init(true);
@@ -387,5 +390,16 @@ int main() {
 	cleanup();
 	ImTui_ImplText_Shutdown();
 	ImTui_ImplNcurses_Shutdown();
+#else
+	g_config.load();
+	setup();
+	while (true) {
+		refresh();
+		poll_input();
+}
+	cleanup();
+#endif // ENABLE_UI
+
+
 	return 0;
 }

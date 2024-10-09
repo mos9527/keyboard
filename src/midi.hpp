@@ -131,8 +131,8 @@ namespace midi {
 		"Applause",
 		"Gunshot"
 	};
-}	
-namespace midi{
+}
+namespace midi {
 	using namespace std;
 	struct inputDevice_t { uint32_t index; string name; string id; };
 	using outputDevice_t = inputDevice_t;
@@ -142,7 +142,9 @@ namespace midi{
 	struct keyDownMessage_t { uint8_t channel, note, velocity; };
 	struct keyUpMessage_t { uint8_t channel, note; };
 	struct programChangeMessage_t { uint8_t channel, program; };
-	using message_t = variant<keyDownMessage_t, keyUpMessage_t, programChangeMessage_t>;
+	struct pitchWheelMessage_t { uint8_t channel; unsigned short level; };
+	struct controllerMessage_t { uint8_t channel, controller, value; };
+	using message_t = variant<int, keyDownMessage_t, keyUpMessage_t, programChangeMessage_t, pitchWheelMessage_t, controllerMessage_t>;
 	/****/
 	struct inputContext {
 	public:
@@ -202,11 +204,27 @@ namespace midi{
 				break;
 			case MIM_DATA: {
 				winMM_message message{ .param = (DWORD)dwParam1 };
-				uint8_t velocity = message.data[2], note = message.data[1], status = message.data[0];
-				uint8_t channel = status & 0xF;
-				if (velocity == 0) ctx->messages.push(keyUpMessage_t{ channel, note }), ctx->messageCV.notify_one();
-				else ctx->messages.push(keyDownMessage_t{ channel, note, velocity }), ctx->messageCV.notify_one();
-				break;
+				uint8_t hi = message.data[2], lo = message.data[1], status = message.data[0];
+				uint8_t msg = status >> 4, channel = status & 0xF;
+				switch (msg)
+				{
+				case 0x8:
+					ctx->messages.push(keyUpMessage_t{ channel, lo }); break;
+				case 0x9:
+					ctx->messages.push(keyDownMessage_t{ channel, lo, hi }); break;
+				case 0xB:
+					ctx->messages.push(controllerMessage_t{ channel, lo, hi }); break;
+				case 0xE:
+				{
+					pitchWheelMessage_t msg{ .channel = channel };
+					msg.level = (hi & 0b01111111); msg.level <<= 7; msg.level |= (lo & 0b01111111);
+					ctx->messages.push(msg);
+					break;
+				}
+				default:
+					break;
+				}
+				ctx->messageCV.notify_one();
 			}
 			default:
 				break;
@@ -275,8 +293,16 @@ namespace midi{
 				[&](programChangeMessage_t const& msg) {
 					winMM_message data {.data = { (BYTE)(0xC0 | msg.channel), (BYTE)msg.program, (BYTE)0 } };
 					midiOutShortMsg(handle, data.param);
-				}
-				}, message);
+				},
+				[&](pitchWheelMessage_t const& msg) {
+					winMM_message data {.data = { (BYTE)(0xE0 | msg.channel), (BYTE)(msg.level & 0x7F), (BYTE)(msg.level >> 7) } };
+					midiOutShortMsg(handle, data.param);
+				},
+				[&](controllerMessage_t const& msg) {
+					winMM_message data {.data = { (BYTE)(0xB0 | msg.channel), (BYTE)msg.controller, (BYTE)msg.value } };
+					midiOutShortMsg(handle, data.param);
+				},
+			}, message);
 		}
 		inline virtual std::string getMidiErrorMessage() {
 			static char buffer[1024];
@@ -309,10 +335,19 @@ namespace midi{
 			switch (message.Type())
 			{
 			case MidiMessageType::NoteOn:
-				ctx->messages.push(keyDownMessage_t{ 0, message.as<MidiNoteOnMessage>().Note(), message.as<MidiNoteOnMessage>().Velocity() });
+				ctx->messages.push(keyDownMessage_t{ message.as<MidiNoteOnMessage>().Channel(), message.as<MidiNoteOnMessage>().Note(), message.as<MidiNoteOnMessage>().Velocity() });
 				break;
 			case MidiMessageType::NoteOff:
-				ctx->messages.push(keyUpMessage_t{ 0, message.as<MidiNoteOffMessage>().Note() });
+				ctx->messages.push(keyUpMessage_t{ message.as<MidiNoteOffMessage>().Channel(), message.as<MidiNoteOffMessage>().Note() });
+				break;
+			case MidiMessageType::ProgramChange:
+				ctx->messages.push(programChangeMessage_t{ message.as<MidiProgramChangeMessage>().Channel(), message.as<MidiProgramChangeMessage>().Program() });
+				break;
+			case MidiMessageType::PitchBendChange:
+				ctx->messages.push(pitchWheelMessage_t{ message.as<MidiPitchBendChangeMessage>().Channel(), message.as<MidiPitchBendChangeMessage>().Bend() });
+				break;
+			case MidiMessageType::ControlChange:
+				ctx->messages.push(controllerMessage_t{ message.as<MidiControlChangeMessage>().Channel(), message.as<MidiControlChangeMessage>().Controller(), message.as<MidiControlChangeMessage>().ControlValue() });
 				break;
 			default:
 				break;
@@ -383,8 +418,14 @@ namespace midi{
 				},
 				[&](programChangeMessage_t const& msg) {
 					port.SendBuffer(MidiProgramChangeMessage(msg.channel, msg.program).RawData());
-				}
-				}, message);
+				},
+				[&](pitchWheelMessage_t const& msg) {
+					port.SendBuffer(MidiPitchBendChangeMessage(msg.channel, msg.level).RawData());
+				},
+				[&](controllerMessage_t const& msg) {
+					port.SendBuffer(MidiControlChangeMessage(msg.channel, msg.controller, msg.value).RawData());
+				},
+			}, message);
 		}
 		inline virtual std::string getMidiErrorMessage() { return "Unknown Error (WinRT)"; }
 		inline virtual void getMidiOutDevices(midiOutputDevices_t& result) {
