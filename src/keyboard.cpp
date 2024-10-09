@@ -11,8 +11,7 @@ struct {
 	int inputChannel = 0;
 	int inputDeviceIndex = 0;
 	int outputDeviceIndex = 0;
-	int outputChannel = 0;
-	int outputProgram = 0;
+	int outputChannel = 0;	
 	int keyboardKeymap[256]{};
 	void save() {
 		FILE* file = fopen(CONFIG_FILENAME, "wb");
@@ -69,7 +68,15 @@ midiInContext_t g_midiInContext;
 midiOutContext_t g_midiOutContext;
 midi::midiInputDevices_t g_midiInDevices;
 midi::midiOutputDevices_t g_midiOutDevices;
-chord::midi_key_states_t g_keyboardState;
+struct {
+	int program;
+	chord::midi_key_states_t keys;
+	struct {
+		int pitchBend = 0x2000;
+		int modulation = 0;
+		int pedal = 0;
+	} controls;
+} g_midiChannelStates[16];
 const uint8_t ACTIVE_INPUT_FRAMES = 10;
 std::array<int, 16> g_activeInputs;
 /****/
@@ -86,7 +93,7 @@ void setup() {
 	if (g_midiOutDevices.size())
 		g_midiOutContext = make_midi_output_context(g_midiOutDevices[std::min(g_midiOutDevices.size() - 1, (size_t)g_config.outputDeviceIndex)]);
 	if (g_midiInContext->getStatus())
-		g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
+		g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_midiChannelStates[g_config.outputChannel].program});
 }
 void poll_input() {
 	auto map_midi_to_keystroke = [&](uint8_t velocity, uint8_t key) {
@@ -106,29 +113,37 @@ void poll_input() {
 			while (auto pool = g_midiInContext->pollMessage()) {
 				auto& message = pool.value();
 				std::visit(visitor{
-					[&](keyDownMessage_t& msg) {						
-						if (msg.channel == g_config.inputChannel)
-							g_keyboardState[msg.note] = msg.velocity;
-						map_midi_to_keystroke(msg.velocity, msg.note);
+					[&](keyDownMessage_t& msg) {					
+						g_midiChannelStates[msg.channel].keys[msg.note] = msg.velocity;
+						if (msg.channel == g_config.inputChannel)							
+							map_midi_to_keystroke(msg.velocity, msg.note);
 					},
 					[&](keyUpMessage_t& msg) {
-						if (msg.channel == g_config.inputChannel)
-							g_keyboardState[msg.note] = 0;
-						map_midi_to_keystroke(0, msg.note);
+						g_midiChannelStates[msg.channel].keys[msg.note] = msg.velocity;
+						if (msg.channel == g_config.inputChannel)							
+							map_midi_to_keystroke(0, msg.note);
 					},
-					}, message);
+					[&](pitchWheelMessage_t& msg) {
+						g_midiChannelStates[msg.channel].controls.pitchBend = msg.level;
+					},
+					[&](controllerMessage_t& msg) {						
+						if (msg.controller == 1) g_midiChannelStates[msg.channel].controls.modulation = msg.value;
+						if (msg.controller == 64) g_midiChannelStates[msg.channel].controls.pedal = msg.value;
+					},
+					[&](programChangeMessage_t& msg) {
+						g_midiChannelStates[msg.channel].program = msg.program;
+					}
+				}, message);
 				if (g_midiOutContext) {
 					std::visit(visitor{
 						[&] (auto& msg) {
 							constexpr bool channel_type = requires() { msg.channel; };
 							if constexpr (channel_type) {
 								g_activeInputs[msg.channel] = ACTIVE_INPUT_FRAMES;
-								if (msg.channel == g_config.inputChannel)
-									msg.channel = g_config.outputChannel,
-									g_midiOutContext->sendMessage(msg);
 							}
 						},
-						}, message);
+					}, message);
+					g_midiOutContext->sendMessage(message);
 				}
 			}
 		}
@@ -204,6 +219,12 @@ void draw() {
 			}
 			ImGui::EndCombo();
 		}
+		auto width = ImGui::CalcItemWidth() / 3.0f;
+		ImGui::ProgressBar(g_midiChannelStates[g_config.inputChannel].controls.pitchBend / 8192.0f / 2.0f, ImVec2(width, 1), "PITCH");
+		ImGui::SameLine();
+		ImGui::ProgressBar(g_midiChannelStates[g_config.inputChannel].controls.modulation / 127.0f, ImVec2(width, 1), "MOD");
+		ImGui::SameLine();
+		ImGui::ProgressBar(g_midiChannelStates[g_config.inputChannel].controls.pedal / 127.0f, ImVec2(width, 1), "SUSTAIN");
 		draw_button_array(g_config.inputChannel, channel_names, 0, g_activeInputs.data());
 		ImGui::Text("Input Channel");
 		ImGui::Text("Output");
@@ -226,19 +247,20 @@ void draw() {
 		if (g_midiOutContext) {
 			bool dirty = draw_button_array(g_config.outputChannel, channel_names, 16);
 			ImGui::Text("Output Channel");
-			if (ImGui::BeginCombo("Output Program", midi::GM_programs[g_config.outputProgram])) {
+			auto& program = g_midiChannelStates[g_config.outputChannel].program;
+			if (ImGui::BeginCombo("Output Program", midi::GM_programs[program])) {
 				for (int i = 0; i < extent_of(midi::GM_programs); i++) {
-					bool selected = g_config.outputProgram == i;
+					bool selected = program == i;
 					if (ImGui::Selectable(midi::GM_programs[i], &selected)) {
-						g_config.outputProgram = i;
+						program = i;
 						dirty = true;
 					}
 				}
 				ImGui::EndCombo();
 			}
 			ImGui::SameLine();
-			dirty |= draw_twiddle_button(g_config.outputProgram, 0, extent_of(midi::GM_programs), 32);
-			if (dirty) g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_config.outputProgram });
+			dirty |= draw_twiddle_button(program, 0, extent_of(midi::GM_programs), 32);
+			if (dirty) g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)program });
 		}
 		if (ImGui::Button("Refresh")) setup();
 	}
@@ -271,9 +293,9 @@ void draw() {
 				if (isBlack && !isBlackKey) continue;
 				ImVec4 keyColor = isBlackKey ? blackKeyColor : whiteKeyColor;
 				ImVec4 labelColor = isBlackKey ? whiteKeyColor : blackKeyColor;
-				if (g_keyboardState[note] > 0)
+				if (g_midiChannelStates[g_config.inputChannel].keys[note] > 0)
 				{
-					float t = g_keyboardState[note] / 127.0f;
+					float t = g_midiChannelStates[g_config.inputChannel].keys[note] / 127.0f;
 					keyColor = ImLerp(pressedKeyColor, blackKeyColor, t);
 				}
 				ImVec2 keySize = isBlackKey ? blackKeySize : whiteKeySize;
@@ -349,7 +371,7 @@ void draw() {
 		}
 	}
 	if (ImGui::CollapsingHeader("Chords", ImGuiTreeNodeFlags_DefaultOpen)) {
-		g_chordNames.resize(chord::format<char[256]>(g_keyboardState, g_chordNames.span()));
+		g_chordNames.resize(chord::format<char[256]>(g_midiChannelStates[g_config.inputChannel].keys, g_chordNames.span()));
 		for (auto& line : g_chordNames) {
 			ImGui::TextUnformatted(line);
 		}

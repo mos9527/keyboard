@@ -545,7 +545,7 @@ namespace chord {
 			}
 		}
 		// intervals
-		if (crange.size() && crange.size() < 3) {
+		if (crange.size() && crange.size() < 3 && keys.size() > 1) {
 			if (crange.size() == 1)
 				sprintf(*line_it, "%s %s", key_table[bass_k],interval_table[crange[0]]), line_it++;
 			else
@@ -558,6 +558,11 @@ namespace chord {
 				v.format_to_string(*line_it, key_table[bass_k], key_table[nth_k]);
 				line_it++;
 			}
+		}
+		// single notes
+		if (keys.size() == 1) {
+			sprintf(*line_it, "%s", key_table[bass_k]);
+			line_it++;
 		}
 		return line_it - lines.begin();
 	}

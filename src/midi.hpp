@@ -140,7 +140,7 @@ namespace midi {
 	typedef vector<outputDevice_t> midiOutputDevices_t;
 	/****/
 	struct keyDownMessage_t { uint8_t channel, note, velocity; };
-	struct keyUpMessage_t { uint8_t channel, note; };
+	struct keyUpMessage_t { uint8_t channel, note, velocity; };
 	struct programChangeMessage_t { uint8_t channel, program; };
 	struct pitchWheelMessage_t { uint8_t channel; unsigned short level; };
 	struct controllerMessage_t { uint8_t channel, controller, value; };
@@ -209,11 +209,13 @@ namespace midi {
 				switch (msg)
 				{
 				case 0x8:
-					ctx->messages.push(keyUpMessage_t{ channel, lo }); break;
+					ctx->messages.push(keyUpMessage_t{ channel, lo, hi }); break;
 				case 0x9:
 					ctx->messages.push(keyDownMessage_t{ channel, lo, hi }); break;
 				case 0xB:
 					ctx->messages.push(controllerMessage_t{ channel, lo, hi }); break;
+				case 0xC:
+					ctx->messages.push(programChangeMessage_t{ channel, lo }); break;
 				case 0xE:
 				{
 					pitchWheelMessage_t msg{ .channel = channel };
@@ -287,7 +289,7 @@ namespace midi {
 					midiOutShortMsg(handle, data.param);
 				},
 				[&](keyUpMessage_t const& msg) {
-					winMM_message data {.data = { (BYTE)(0x80 | msg.channel), (BYTE)msg.note, (BYTE)0 } };
+					winMM_message data {.data = { (BYTE)(0x80 | msg.channel), (BYTE)msg.note, (BYTE)msg.velocity } };
 					midiOutShortMsg(handle, data.param);
 				},
 				[&](programChangeMessage_t const& msg) {
@@ -414,7 +416,7 @@ namespace midi {
 					port.SendBuffer(MidiNoteOnMessage(msg.channel, msg.note, msg.velocity).RawData());
 				},
 				[&](keyUpMessage_t const& msg) {
-					port.SendBuffer(MidiNoteOffMessage(msg.channel, msg.note, 0).RawData());
+					port.SendBuffer(MidiNoteOffMessage(msg.channel, msg.note, msg.velocity).RawData());
 				},
 				[&](programChangeMessage_t const& msg) {
 					port.SendBuffer(MidiProgramChangeMessage(msg.channel, msg.program).RawData());
