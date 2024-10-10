@@ -1,6 +1,10 @@
 ﻿#include "imtui/imtui.h"
 #include "imtui/imtui-impl-ncurses.h"
-#include "midi.hpp"
+#include "midi/midi.hpp"
+#include "midi/impl_winmm.hpp"
+#include "midi/impl_winrt.hpp"
+#include "midi/data/gm.hpp"
+
 #include "imgui/imgui_internal.h"
 
 #include "chord.hpp"
@@ -8,7 +12,8 @@
 #define CONFIG_FILENAME "config"
 struct {
 	int backend = 0;
-	int inputChannel = 0;
+	int inputChannel = 0;	
+	int inputChannelRemap = -1;
 	int inputDeviceIndex = 0;
 	int outputDeviceIndex = 0;
 	int outputChannel = 0;
@@ -129,7 +134,7 @@ void poll_input() {
 					},
 					[&](keyUpMessage_t& msg) {
 						if (!g_midiChannelStates[msg.channel].hold)
-							g_midiChannelStates[msg.channel].keys[msg.note] = msg.velocity;
+							g_midiChannelStates[msg.channel].keys[msg.note] = 0;
 						else
 							passthrough = false;
 						if (msg.channel == g_config.inputChannel)
@@ -152,6 +157,8 @@ void poll_input() {
 							constexpr bool channel_type = requires() { msg.channel; };
 							if constexpr (channel_type) {
 								g_activeInputs[msg.channel] = ACTIVE_INPUT_FRAMES;
+								if (msg.channel == g_config.inputChannel && g_config.inputChannelRemap >= 0)
+									msg.channel = g_config.inputChannelRemap;
 							}
 						},
 						}, message);
@@ -239,6 +246,7 @@ void draw() {
 		ImGui::ProgressBar(g_midiChannelStates[g_config.inputChannel].controls.pedal / 127.0f, ImVec2(width, 1), "SUSTAIN");
 		draw_button_array(g_config.inputChannel, channel_names, 0, g_activeInputs.data());
 		ImGui::Text("Input Channel");
+		ImGui::SliderInt("Remap Channel", &g_config.inputChannelRemap, -1, 15);
 		ImGui::Text("Output");
 		if (!g_midiOutContext->getStatus()) {
 			static std::string errorMessage = g_midiOutContext->getMidiErrorMessage();
@@ -257,21 +265,25 @@ void draw() {
 			ImGui::EndCombo();
 		}
 		if (g_midiOutContext) {
-			bool dirty = draw_button_array(g_config.outputChannel, channel_names, 16);
+			bool channel_changed = draw_button_array(g_config.outputChannel, channel_names, 16);
 			ImGui::Text("Output Channel");
-			auto& program = g_midiChannelStates[g_config.outputChannel].program;
-			if (ImGui::BeginCombo("Output Program", midi::GM_programs[program])) {
-				for (int i = 0; i < extent_of(midi::GM_programs); i++) {
-					bool selected = program == i;
-					if (ImGui::Selectable(midi::GM_programs[i], &selected)) {
-						program = i;
-						dirty = true;
+			{
+				auto& program = g_midiChannelStates[g_config.outputChannel].program;
+				bool program_changed = false;				
+				if (ImGui::BeginCombo("Program", midi::gm::programs[program])) {
+					for (int i = 0; i < extent_of(midi::gm::programs); i++) {
+						bool selected = program == i;
+						if (ImGui::Selectable(midi::gm::programs[i], &selected)) {
+							program = i, program_changed = true;
+						}
 					}
+					ImGui::EndCombo();
 				}
-				ImGui::EndCombo();
+				ImGui::SameLine();
+				program_changed |= draw_twiddle_button(program, 0, extent_of(midi::gm::programs), 32);
+				if (program_changed)
+					g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)program });				
 			}
-			ImGui::SameLine();
-			dirty |= draw_twiddle_button(program, 0, extent_of(midi::GM_programs), 32);
 			auto& muted = g_midiChannelStates[g_config.outputChannel].muted;
 			auto& solo = g_midiChannelStates[g_config.outputChannel].solo;
 			auto& hold = g_midiChannelStates[g_config.outputChannel].hold;
@@ -298,8 +310,7 @@ void draw() {
 			ImGui::SameLine();
 			if (ImGui::Checkbox("Hold", &hold)) {
 				if (!hold) release_all_keys(g_config.outputChannel);
-			}
-			if (dirty) g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)program });
+			}			
 		}
 		static bool sync_input_output_chn_select = true;
 		ImGui::Checkbox("Sync Input/Output Channel Selection", &sync_input_output_chn_select);

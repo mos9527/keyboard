@@ -25,5 +25,5 @@ references
 * https://www.recordingblogs.com/wiki/status-byte-of-a-midi-message
 * https://www.recordingblogs.com/wiki/midi-voice-messages
 * https://www.recordingblogs.com/wiki/midi-controller-message
-
-
+* https://midi.org/general-midi-2
+* General MIDI 2 (February 6, 2007 Version 1.2a)
