@@ -1,6 +1,9 @@
 #ifndef _MIDI
 #define _MIDI
 namespace midi {
+	const size_t MAX_CHANNEL_COUNT = 16;
+	const size_t MAX_SYSEX_MESSAGE_SIZE = 2048;
+
 	using namespace std;
 	struct inputDevice_t { uint32_t index; string name; string id; };
 	using outputDevice_t = inputDevice_t;
@@ -12,7 +15,8 @@ namespace midi {
 	struct programChangeMessage_t { uint8_t channel, program; };
 	struct pitchWheelMessage_t { uint8_t channel; unsigned short level; };
 	struct controllerMessage_t { uint8_t channel, controller, value; };
-	using message_t = variant<int, keyDownMessage_t, keyUpMessage_t, programChangeMessage_t, pitchWheelMessage_t, controllerMessage_t>;
+	using sysexMessage_t = shared_ptr<fixed_vector<char, MAX_SYSEX_MESSAGE_SIZE>>;
+	using message_t = variant<keyDownMessage_t, keyUpMessage_t, programChangeMessage_t, pitchWheelMessage_t, controllerMessage_t, sysexMessage_t>;
 	/****/
 	struct inputContext {
 	public:

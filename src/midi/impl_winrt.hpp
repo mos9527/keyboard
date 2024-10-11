@@ -4,6 +4,8 @@ namespace midi {
 	using namespace Windows::Foundation;
 	using namespace Windows::Devices::Enumeration;
 	using namespace Windows::Devices::Midi;
+	using namespace Windows::Storage::Streams;
+
 	struct inputContext_WinRT : public inputContext {
 	private:
 		uint32_t index = 0;
@@ -28,6 +30,14 @@ namespace midi {
 			case MidiMessageType::ControlChange:
 				ctx->messages.push(controllerMessage_t{ message.as<MidiControlChangeMessage>().Channel(), message.as<MidiControlChangeMessage>().Controller(), message.as<MidiControlChangeMessage>().ControlValue() });
 				break;
+			case MidiMessageType::SystemExclusive:
+			{
+				auto sysex = message.as<MidiSystemExclusiveMessage>();
+				ctx->messages.push(make_shared<sysexMessage_t::element_type>(
+					(char*)sysex.RawData().data(), sysex.RawData().Length()
+				));
+				break;
+			}
 			default:
 				break;
 			}
@@ -104,6 +114,11 @@ namespace midi {
 				[&](controllerMessage_t const& msg) {
 					port.SendBuffer(MidiControlChangeMessage(msg.channel, msg.controller, msg.value).RawData());
 				},
+				[&](sysexMessage_t const& msg) {
+					Buffer buffer(msg->size());
+					memcpy(buffer.data(), msg->data(), msg->size());
+					port.SendBuffer(MidiSystemExclusiveMessage(buffer).RawData());
+				}
 				}, message);
 		}
 		inline virtual std::string getMidiErrorMessage() { return "Unknown Error (WinRT)"; }

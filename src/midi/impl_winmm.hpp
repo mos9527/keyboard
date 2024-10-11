@@ -21,6 +21,14 @@ namespace midi {
 			{
 			case MIM_OPEN:
 				break;
+			case MIM_LONGDATA:
+			{
+				MIDIHDR* hdr = (MIDIHDR*)dwParam1;
+				ctx->messages.push(make_shared<sysexMessage_t::element_type>(
+					*(char**)hdr->lpData, hdr->dwBytesRecorded
+				));
+				break;
+			}
 			case MIM_DATA: {
 				winMM_message message{ .param = (DWORD)dwParam1 };
 				uint8_t hi = message.data[2], lo = message.data[1], status = message.data[0];
@@ -122,6 +130,12 @@ namespace midi {
 				[&](controllerMessage_t const& msg) {
 					winMM_message data {.data = { (BYTE)(0xB0 | msg.channel), (BYTE)msg.controller, (BYTE)msg.value } };
 					midiOutShortMsg(handle, data.param);
+				},
+				[&](sysexMessage_t const& msg) {
+					MIDIHDR hdr{};
+					hdr.lpData = msg->data();
+					hdr.dwBufferLength = hdr.dwBytesRecorded = msg->size();
+					midiOutLongMsg(handle, &hdr, sizeof(MIDIHDR));
 				},
 				}, message);
 		}

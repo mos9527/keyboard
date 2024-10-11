@@ -540,28 +540,28 @@ namespace chord {
 		if (chord_v) {
 			for (auto& v : chord_v->second) {
 				uint8_t nth_k = (keys[0] + chord_keys[v.nth_root]) % 12;
-				v.format_to_string(*line_it, key_table[bass_k], key_table[nth_k]);
+				v.format_to_string(line_it->data(), key_table[bass_k], key_table[nth_k]);
 				line_it++;
 			}
 		}
 		// intervals
 		if (crange.size() && crange.size() < 3 && keys.size() > 1) {
 			if (crange.size() == 1)
-				sprintf(*line_it, "%s %s", key_table[bass_k],interval_table[crange[0]]), line_it++;
+				sprintf(line_it->data(), "%s %s", key_table[bass_k],interval_table[crange[0]]), line_it++;
 			else
-				sprintf(*line_it, "%s %s", key_table[bass_k],interval_table[crange[1]]), line_it++;
+				sprintf(line_it->data(), "%s %s", key_table[bass_k],interval_table[crange[1]]), line_it++;
 		}
 		// scales
 		if (scale_v && keys.size() > 1) {
 			for (auto& v : scale_v->second) {
 				uint8_t nth_k = (keys[0] + chord_keys[v.nth_root]) % 12;
-				v.format_to_string(*line_it, key_table[bass_k], key_table[nth_k]);
+				v.format_to_string(line_it->data(), key_table[bass_k], key_table[nth_k]);
 				line_it++;
 			}
 		}
 		// single notes
 		if (keys.size() == 1) {
-			sprintf(*line_it, "(%s)", key_table[bass_k]);
+			sprintf(line_it->data(), "(%s)", key_table[bass_k]);
 			line_it++;
 		}
 		return line_it - lines.begin();

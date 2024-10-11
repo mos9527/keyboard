@@ -23,17 +23,18 @@
 #include "winrt/Windows.Foundation.Collections.h"
 #include "winrt/Windows.Devices.Midi.h"
 #include "winrt/Windows.Devices.Enumeration.h"
+#include "winrt/Windows.Storage.Streams.h"
 #endif
 #define PRED(X) [](auto const& lhs, auto const& rhs) {return X;}
 #define PAIR2(T) std::pair<T,T>
-inline void __check(bool condition, const std::string& message = "", const std::source_location& location = std::source_location::current()) {
-	if (!condition) {
-		std::cerr << location.file_name() << ":" << location.line() << ",at " << location.function_name() << std::endl;
-		if (message.size()) std::cerr << "ERROR: " << message << std::endl;
-		std::abort();
-	}
+static void _assert(const wchar_t* cond_s, const wchar_t* fmt = L"", auto ...args) {
+	static wchar_t _assert_msg_buffer[1024];
+	int p = swprintf(_assert_msg_buffer, L"Assertion failed: %ls\n", cond_s);
+	swprintf(_assert_msg_buffer + p, fmt, args...);
+	MessageBoxW(NULL, _assert_msg_buffer, L"Error", MB_ICONERROR);
+	exit(1);
 }
-#define CHECK(EXPR, ...) __check(!!(EXPR), __VA_ARGS__)
+#define ASSERT(cond, ...) if (!(cond)) _assert(L#cond, __VA_ARGS__);
 // https://stackoverflow.com/a/22713396
 template<typename T, size_t N> constexpr size_t extent_of(T(&)[N]) { return N; };
 // C++ Weekly - Ep 440 - Revisiting Visitors for std::visit - https://www.youtube.com/watch?v=et1fjd8X1ho
@@ -45,15 +46,48 @@ template<typename... T> struct visitor : T... {
 		/* nop */
 	};
 };
-template<size_t Rows, size_t Cols, typename Elem = char> struct line_buffer {
-	using column_type = Elem[Cols];
+// Fixed size vector
+template<typename T, size_t Size> class fixed_vector {
+	std::array<T, Size> _data{};
+	size_t _size{ Size };
+public:	
+	inline fixed_vector() = default;
+	inline explicit fixed_vector(const T* data, const size_t size) {
+		ASSERT(size <= Size);
+		memcpy(this->data(), data, size);		
+		resize(size);
+	}
+	
+	inline T& operator[](size_t index) { return _data[index]; }
+	
+	inline std::array<T, Size>::iterator begin() { return _data.begin(); }
+	inline std::array<T, Size>::iterator end() { return _data.begin() + _size; }
+	inline std::array<T, Size>::iterator end_max() { return _data.end(); }
+
+	inline std::span<T> span() { return { begin(), end() }; }
+	inline std::span<T> span_max() { return { begin(), end_max() }; }
+
+	inline T* data() { return _data.data(); }
+	inline size_t size() { return _size; }
+	inline void resize(size_t size) { ASSERT(size <= Size); _size = size; }
+};
+// Column major matrix
+template<typename T, size_t Rows, size_t Cols> class fixed_matrix {
+	using column_type = fixed_vector<T, Cols>;
 	using row_type = std::array<column_type, Rows>;
-	row_type data{};
-	size_t size{};
-	/***/
-	std::span<column_type> span() { return { data.begin(), data.end() }; }
-	row_type::iterator begin() { return data.begin(); }
-	row_type::iterator end() { return data.begin() + size; }
-	void resize(size_t size) { CHECK(size <= Rows); this->size = size; }
+	row_type _data{};
+	size_t _size{ Rows };
+public:
+	inline column_type& operator[](size_t row) { return _data[row]; }
+
+	inline row_type::iterator begin() { return _data.begin(); }
+	inline row_type::iterator end() { return _data.begin() + _size; }
+	inline row_type::iterator end_max() { return _data.end(); }
+
+	inline std::span<column_type> span() { return { begin(), end() }; }
+	inline std::span<column_type> span_max() { return { begin(), end_max() }; }
+
+	inline size_t size() { return _size; }
+	inline void resize(size_t size) { ASSERT(size <= Rows); _size = size; }
 };
 #endif

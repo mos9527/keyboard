@@ -20,7 +20,7 @@ struct {
 	int keyboardKeymap[256]{};
 	void save() {
 		FILE* file = fopen(CONFIG_FILENAME, "wb");
-		CHECK(file, "Failed to open file for writing");
+		ASSERT(file, L"Failed to open file for writing");
 		fwrite(this, sizeof(*this), 1, file);
 		fclose(file);
 	};
@@ -82,11 +82,11 @@ struct {
 		int modulation = 0;
 		int pedal = 0;
 	} controls;
-} g_midiChannelStates[16];
+} g_midiChannelStates[midi::MAX_CHANNEL_COUNT];
 const uint8_t ACTIVE_INPUT_FRAMES = 3;
-std::array<int, 16> g_activeInputs;
+std::array<int, midi::MAX_CHANNEL_COUNT> g_activeInputs;
 /****/
-line_buffer<256, 256> g_chordNames;
+fixed_matrix<char, 256, 256> g_chordNames;
 /****/
 void setup() {
 	g_midiInContext = make_midi_input_context();
@@ -265,7 +265,7 @@ void draw() {
 			ImGui::EndCombo();
 		}
 		if (g_midiOutContext) {
-			bool channel_changed = draw_button_array(g_config.outputChannel, channel_names, 16);
+			bool channel_changed = draw_button_array(g_config.outputChannel, channel_names, midi::MAX_CHANNEL_COUNT);
 			ImGui::Text("Output Channel");
 			{
 				auto& program = g_midiChannelStates[g_config.outputChannel].program;
@@ -301,9 +301,9 @@ void draw() {
 				};
 			ImGui::Checkbox("Mute", &muted); ImGui::SameLine();
 			if (ImGui::Checkbox("Solo", &solo)) {
-				if (!solo) for (int i = 0; i < 16; i++) set_channel_mute(i, false);
+				if (!solo) for (int i = 0; i < midi::MAX_CHANNEL_COUNT; i++) set_channel_mute(i, false);
 				else {
-					for (int i = 0; i < 16; i++) set_channel_mute(i, true), g_midiChannelStates[i].solo = false;
+					for (int i = 0; i < midi::MAX_CHANNEL_COUNT; i++) set_channel_mute(i, true), g_midiChannelStates[i].solo = false;
 					muted = false, solo = true;
 				}
 			}
@@ -425,9 +425,9 @@ void draw() {
 		}
 	}
 	if (ImGui::CollapsingHeader("Chords", ImGuiTreeNodeFlags_DefaultOpen)) {
-		g_chordNames.resize(chord::format<char[256]>(g_midiChannelStates[g_config.inputChannel].keys, g_chordNames.span()));
+		g_chordNames.resize(chord::format(g_midiChannelStates[g_config.inputChannel].keys, g_chordNames.span_max()));
 		for (auto& line : g_chordNames) {
-			ImGui::TextUnformatted(line);
+			ImGui::TextUnformatted(line.data());
 		}
 	}
 	ImGui::End();
