@@ -7,7 +7,9 @@
 #include <mutex>
 #include <condition_variable>
 #include <optional>
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif // !WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
 #include <mmeapi.h>
@@ -17,6 +19,7 @@
 #include <source_location>
 #include <string>
 #include <variant>
+
 #ifdef WINRT
 #pragma comment(lib, "windowsapp")
 #include "winrt/Windows.Foundation.h"
@@ -24,7 +27,16 @@
 #include "winrt/Windows.Devices.Midi.h"
 #include "winrt/Windows.Devices.Enumeration.h"
 #include "winrt/Windows.Storage.Streams.h"
+#pragma message("WinRT MIDI API is enabled")
+#ifdef MIDI2
+#include "winrt/Microsoft.Windows.Devices.Midi2.h"
+#include "winrt/Microsoft.Windows.Devices.Midi2.Diagnostics.h"
+#include "winrt/Microsoft.Windows.Devices.Midi2.Messages.h"
+#include "winrt/Microsoft.Windows.Devices.Midi2.Initialization.h"
+#pragma message("MIDI2 is enabled")
 #endif
+#endif
+
 #define PRED(X) [](auto const& lhs, auto const& rhs) {return X;}
 #define PAIR2(T) std::pair<T,T>
 static void _assert(const wchar_t* cond_s, const wchar_t* fmt = L"", auto ...args) {

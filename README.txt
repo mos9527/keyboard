@@ -27,3 +27,5 @@ references
 * https://www.recordingblogs.com/wiki/midi-controller-message
 * https://midi.org/general-midi-2
 * General MIDI 2 (February 6, 2007 Version 1.2a)
+* https://stackoverflow.com/questions/18132987/cmake-and-msvs-nuget
+* https://github.com/fredemmott/cmake-cpp-winrt-winui3/blob/master/src/CMakeLists.txt

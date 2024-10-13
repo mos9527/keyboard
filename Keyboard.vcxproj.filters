@@ -1,0 +1,217 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\ImTui">
+      <UniqueIdentifier>{ee31a5b3-e68e-44b2-a44a-05003750cc63}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ImTui\ImGui">
+      <UniqueIdentifier>{447f8c79-6734-4b9b-82d2-419be0dae6d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\PDCurses">
+      <UniqueIdentifier>{6a9fc7eb-c8e7-4903-a6ff-c78dc344a25c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PropertySheet.props" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="readme.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\pch.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\MIDI\Data\GM.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\MIDI\ImplWinMM.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\MIDI\ImplWinRT.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\MIDI\MIDI.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\MIDI\ImplWinMIDI2.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Source\Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\ImTUI\src\imtui-impl-ncurses.cpp">
+      <Filter>Source Files\ImTui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\ImTUI\third-party\imgui\imgui\imgui.cpp">
+      <Filter>Source Files\ImTui\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\ImTUI\third-party\imgui\imgui\imgui_draw.cpp">
+      <Filter>Source Files\ImTui\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\ImTUI\third-party\imgui\imgui\imgui_tables.cpp">
+      <Filter>Source Files\ImTui\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\ImTUI\third-party\imgui\imgui\imgui_widgets.cpp">
+      <Filter>Source Files\ImTui\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\wincon\pdcclip.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\wincon\pdcdisp.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\wincon\pdcgetsc.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\wincon\pdckbd.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\wincon\pdcscrn.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\wincon\pdcsetsc.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\wincon\pdcutil.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\addch.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\addchstr.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\addstr.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\attr.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\beep.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\bkgd.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\border.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\clear.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\color.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\debug.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\delch.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\deleteln.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\getch.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\getstr.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\getyx.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\inch.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\inchstr.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\initscr.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\inopts.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\insch.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\insstr.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\instr.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\kernel.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\keyname.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\mouse.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\move.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\outopts.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\overlay.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\pad.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\panel.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\printw.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\refresh.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\scanw.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\scr_dump.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\scroll.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\slk.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\termattr.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\touch.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\util.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\PDCurses\pdcurses\window.c">
+      <Filter>Source Files\PDCurses</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\ImTUI\src\imtui-impl-text.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

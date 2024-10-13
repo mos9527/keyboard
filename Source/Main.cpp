@@ -1,13 +1,17 @@
-﻿#include "imtui/imtui.h"
-#include "imtui/imtui-impl-ncurses.h"
-#include "midi/midi.hpp"
-#include "midi/impl_winmm.hpp"
-#include "midi/impl_winrt.hpp"
-#include "midi/data/gm.hpp"
+﻿#include "pch.hpp"
 
+#include "imtui/imtui.h"
+#include "imtui/imtui-impl-ncurses.h"
 #include "imgui/imgui_internal.h"
 
+#include "MIDI/MIDI.hpp"
+#include "MIDI/ImplWinMM.hpp"
+#include "MIDI/ImplWinRT.hpp"
+#include "MIDI/ImplWinMIDI2.hpp"
+#include "MIDI/Data/GM.hpp"
+
 #include "chord.hpp"
+#include <ImTUI/third-party/imgui/imgui/imgui.h>
 
 #define CONFIG_FILENAME "config"
 struct {
@@ -41,13 +45,20 @@ typedef std::unique_ptr<midi::outputContext> midiOutContext_t;
 const char* MIDI_BACKENDS[] = {
 	"WinMM (Legacy)",
 #ifdef WINRT
-	"WinRT"
+	"WinRT",
+#ifdef MIDI2
+	"MIDI2"
+#endif
 #endif
 };
 template<typename... T> midiInContext_t make_midi_input_context(T const&... args) {
 	switch (g_config.backend)
 	{
 #ifdef WINRT
+#ifdef MIDI2
+	case 2:
+		return std::make_unique<midi::inputContext_WinMIDI2>(args...);
+#endif
 	case 1:
 		return std::make_unique<midi::inputContext_WinRT>(args...);
 #endif
@@ -60,6 +71,10 @@ template<typename... T> midiOutContext_t make_midi_output_context(T const&... ar
 	switch (g_config.backend)
 	{
 #ifdef WINRT
+#ifdef MIDI2
+	case 2:
+		return std::make_unique<midi::outputContext_WinMIDI2>(args...);
+#endif
 	case 1:
 		return std::make_unique<midi::outputContext_WinRT>(args...);
 #endif
@@ -441,9 +456,13 @@ void cleanup() {
 int main() {
 #ifdef WINRT
 	winrt::init_apartment();
+#ifdef MIDI2
+	ASSERT(winrt::Microsoft::Windows::Devices::Midi2::Initialization::MidiServicesInitializer::EnsureServiceAvailable(), L"MIDI2 Services aren't running.");
+	winrt::Microsoft::Windows::Devices::Midi2::Initialization::MidiServicesInitializer::InitializeSdkRuntime();
+#endif
 #endif
 	SetConsoleOutputCP(65001);
-#ifdef ENABLE_UI
+#ifndef NO_UI
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	auto screen = ImTui_ImplNcurses_Init(true);

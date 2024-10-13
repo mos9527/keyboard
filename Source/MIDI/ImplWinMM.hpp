@@ -1,4 +1,5 @@
 #include "midi.hpp"
+#include "pch.hpp"
 namespace midi {
 	union winMM_message {
 		DWORD param;
@@ -31,28 +32,9 @@ namespace midi {
 			}
 			case MIM_DATA: {
 				winMM_message message{ .param = (DWORD)dwParam1 };
-				uint8_t hi = message.data[2], lo = message.data[1], status = message.data[0];
-				uint8_t msg = status >> 4, channel = status & 0xF;
-				switch (msg)
-				{
-				case 0x8:
-					ctx->messages.push(keyUpMessage_t{ channel, lo, hi }); break;
-				case 0x9:
-					ctx->messages.push(keyDownMessage_t{ channel, lo, hi }); break;
-				case 0xB:
-					ctx->messages.push(controllerMessage_t{ channel, lo, hi }); break;
-				case 0xC:
-					ctx->messages.push(programChangeMessage_t{ channel, lo }); break;
-				case 0xE:
-				{
-					pitchWheelMessage_t msg{ .channel = channel };
-					msg.level = (hi & 0b01111111); msg.level <<= 7; msg.level |= (lo & 0b01111111);
-					ctx->messages.push(msg);
-					break;
-				}
-				default:
-					break;
-				}
+				uint8_t hi = message.data[2], lo = message.data[1], status = message.data[0];				
+				auto msg = from_midi1_packet(status, lo, hi);
+				ctx->messages.push(msg);
 				ctx->messageCV.notify_one();
 			}
 			default:
@@ -76,15 +58,15 @@ namespace midi {
 		/****/
 		inline virtual std::string getMidiErrorMessage() {
 			static char buffer[1024];
-			midiInGetErrorText(status, buffer, sizeof(buffer));
+			midiInGetErrorTextA(status, buffer, sizeof(buffer));
 			return buffer;
 		}
 		inline virtual void getMidiInDevices(midiInputDevices_t& devices) {
 			devices.resize(midiInGetNumDevs());
 			uint32_t i = 0;
 			for (auto& index : devices) {
-				MIDIINCAPS caps;
-				midiInGetDevCaps(i, &caps, sizeof(MIDIINCAPS));
+				MIDIINCAPSA caps;
+				midiInGetDevCapsA(i, &caps, sizeof(MIDIINCAPSA));
 				index.index = i++; index.name = index.id = caps.szPname;
 			}
 		}
@@ -141,15 +123,15 @@ namespace midi {
 		}
 		inline virtual std::string getMidiErrorMessage() {
 			static char buffer[1024];
-			midiOutGetErrorText(status, buffer, sizeof(buffer));
+			midiOutGetErrorTextA(status, buffer, sizeof(buffer));
 			return buffer;
 		}
 		inline virtual void getMidiOutDevices(midiOutputDevices_t& devices) {
 			devices.resize(midiOutGetNumDevs());
 			uint32_t i = 0;
 			for (auto& index : devices) {
-				MIDIOUTCAPS caps;
-				midiOutGetDevCaps(i, &caps, sizeof(MIDIOUTCAPS));
+				MIDIOUTCAPSA caps;
+				midiOutGetDevCapsA(i, &caps, sizeof(MIDIOUTCAPSA));
 				index.index = i++; index.name = index.id = caps.szPname;
 			}
 		}

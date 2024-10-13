@@ -1,5 +1,4 @@
-#ifndef _MIDI
-#define _MIDI
+#pragma once
 namespace midi {
 	const size_t MAX_CHANNEL_COUNT = 16;
 	const size_t MAX_SYSEX_MESSAGE_SIZE = 2048;
@@ -16,7 +15,30 @@ namespace midi {
 	struct pitchWheelMessage_t { uint8_t channel; unsigned short level; };
 	struct controllerMessage_t { uint8_t channel, controller, value; };
 	using sysexMessage_t = shared_ptr<fixed_vector<char, MAX_SYSEX_MESSAGE_SIZE>>;
-	using message_t = variant<keyDownMessage_t, keyUpMessage_t, programChangeMessage_t, pitchWheelMessage_t, controllerMessage_t, sysexMessage_t>;
+	using message_t = variant<keyDownMessage_t, keyUpMessage_t, programChangeMessage_t, pitchWheelMessage_t, controllerMessage_t, sysexMessage_t, nullopt_t>;
+	inline message_t from_midi1_packet(uint8_t status, uint8_t lo, uint8_t hi) {		
+		uint8_t msg = status >> 4, channel = status & 0xF;
+		switch (msg)
+		{
+		case 0x8:
+			return keyUpMessage_t{ channel, lo, hi };
+		case 0x9:
+			return keyDownMessage_t{ channel, lo, hi };
+		case 0xB:
+			return controllerMessage_t{ channel, lo, hi };
+		case 0xC:
+			return programChangeMessage_t{ channel, lo };
+		case 0xE:
+		{
+			pitchWheelMessage_t msg{ .channel = channel };
+			msg.level = (hi & 0b01111111); msg.level <<= 7; msg.level |= (lo & 0b01111111);
+			return msg;
+		}
+		default:
+			break;
+		}
+		return nullopt;
+	}
 	/****/
 	struct inputContext {
 	public:
@@ -53,4 +75,3 @@ namespace midi {
 		inline virtual void getMidiOutDevices(midiOutputDevices_t&) = 0;
 	};
 }
-#endif
