@@ -33,7 +33,7 @@ namespace midi {
 			case MIM_DATA: {
 				winMM_message message{ .param = (DWORD)dwParam1 };
 				uint8_t hi = message.data[2], lo = message.data[1], status = message.data[0];				
-				auto msg = from_midi1_packet(status, lo, hi);
+				auto msg = midi1_packet(status, lo, hi);
 				ctx->messages.push(msg);
 				ctx->messageCV.notify_one();
 			}
@@ -92,34 +92,9 @@ namespace midi {
 		/****/
 		inline virtual void sendMessage(message_t const& message) {
 			if (!getStatus()) return;
-			visit(visitor{
-				[&](keyDownMessage_t const& msg) {
-					winMM_message data {.data = { (BYTE)(0x90 | msg.channel), (BYTE)msg.note, (BYTE)msg.velocity} };
-					midiOutShortMsg(handle, data.param);
-				},
-				[&](keyUpMessage_t const& msg) {
-					winMM_message data {.data = { (BYTE)(0x80 | msg.channel), (BYTE)msg.note, (BYTE)msg.velocity } };
-					midiOutShortMsg(handle, data.param);
-				},
-				[&](programChangeMessage_t const& msg) {
-					winMM_message data {.data = { (BYTE)(0xC0 | msg.channel), (BYTE)msg.program, (BYTE)0 } };
-					midiOutShortMsg(handle, data.param);
-				},
-				[&](pitchWheelMessage_t const& msg) {
-					winMM_message data {.data = { (BYTE)(0xE0 | msg.channel), (BYTE)(msg.level & 0x7F), (BYTE)(msg.level >> 7) } };
-					midiOutShortMsg(handle, data.param);
-				},
-				[&](controllerMessage_t const& msg) {
-					winMM_message data {.data = { (BYTE)(0xB0 | msg.channel), (BYTE)msg.controller, (BYTE)msg.value } };
-					midiOutShortMsg(handle, data.param);
-				},
-				[&](sysexMessage_t const& msg) {
-					MIDIHDR hdr{};
-					hdr.lpData = msg->data();
-					hdr.dwBufferLength = hdr.dwBytesRecorded = msg->size();
-					midiOutLongMsg(handle, &hdr, sizeof(MIDIHDR));
-				},
-				}, message);
+			auto packet = midi1_packet(message);
+			winMM_message data{ .data = { packet.status, packet.lo, packet.hi } };
+			midiOutShortMsg(handle, data.param);
 		}
 		inline virtual std::string getMidiErrorMessage() {
 			static char buffer[1024];

@@ -15,30 +15,54 @@ namespace midi {
 	struct pitchWheelMessage_t { uint8_t channel; unsigned short level; };
 	struct controllerMessage_t { uint8_t channel, controller, value; };
 	using sysexMessage_t = shared_ptr<fixed_vector<char, MAX_SYSEX_MESSAGE_SIZE>>;
-	using message_t = variant<keyDownMessage_t, keyUpMessage_t, programChangeMessage_t, pitchWheelMessage_t, controllerMessage_t, sysexMessage_t, nullopt_t>;
-	inline message_t from_midi1_packet(uint8_t status, uint8_t lo, uint8_t hi) {		
-		uint8_t msg = status >> 4, channel = status & 0xF;
-		switch (msg)
-		{
-		case 0x8:
-			return keyUpMessage_t{ channel, lo, hi };
-		case 0x9:
-			return keyDownMessage_t{ channel, lo, hi };
-		case 0xB:
-			return controllerMessage_t{ channel, lo, hi };
-		case 0xC:
-			return programChangeMessage_t{ channel, lo };
-		case 0xE:
-		{
-			pitchWheelMessage_t msg{ .channel = channel };
-			msg.level = (hi & 0b01111111); msg.level <<= 7; msg.level |= (lo & 0b01111111);
-			return msg;
+	using message_t = variant<keyDownMessage_t, keyUpMessage_t, programChangeMessage_t, pitchWheelMessage_t, controllerMessage_t, sysexMessage_t, nullopt_t>;	
+	struct midi1_packet { 
+		uint8_t status, lo, hi;
+		midi1_packet() = default;
+		explicit midi1_packet(uint8_t status, uint8_t lo, uint8_t hi) : status(status), lo(lo), hi(hi) {};
+		explicit midi1_packet(message_t const& msg) {
+			visit(visitor{
+				[&](keyDownMessage_t const& msg) {
+					status = (BYTE)(0x90 | msg.channel), lo = msg.note, hi = msg.velocity;					
+				},
+				[&](keyUpMessage_t const& msg) {
+					status = (BYTE)(0x80 | msg.channel), lo = msg.note, hi = msg.velocity;					
+				},
+				[&](programChangeMessage_t const& msg) {
+					status = (BYTE)(0xC0 | msg.channel), lo = msg.program, hi = 0;					
+				},
+				[&](pitchWheelMessage_t const& msg) {
+					status = (BYTE)(0xE0 | msg.channel), lo = msg.level & 0x7F, hi = msg.level >> 7;					
+				},
+				[&](controllerMessage_t const& msg) {
+					status = (BYTE)(0x80 | msg.channel), lo = msg.controller, hi = msg.value;					
+				},
+			}, msg);
 		}
-		default:
-			break;
+		inline operator message_t() {
+			uint8_t msg = status >> 4, channel = status & 0xF;
+			switch (msg)
+			{
+			case 0x8:
+				return keyUpMessage_t{ channel, lo, hi };
+			case 0x9:
+				return keyDownMessage_t{ channel, lo, hi };
+			case 0xB:
+				return controllerMessage_t{ channel, lo, hi };
+			case 0xC:
+				return programChangeMessage_t{ channel, lo };
+			case 0xE:
+			{
+				pitchWheelMessage_t msg{ .channel = channel };
+				msg.level = (hi & 0b01111111); msg.level <<= 7; msg.level |= (lo & 0b01111111);
+				return msg;
+			}
+			default:
+				break;
+			}
+			return nullopt;
 		}
-		return nullopt;
-	}
+	};	
 	/****/
 	struct inputContext {
 	public:
