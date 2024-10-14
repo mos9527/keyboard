@@ -84,13 +84,14 @@ namespace midi {
 		inline virtual void sendMessage(message_t const& message) {
 			if (!getStatus()) return;
 			auto packet = midi1_packet(message);
-			auto result = port.SendSingleMessagePacket(MidiMessageBuilder::BuildSystemMessage(
-				0,
-				MidiGroup(2),
+			auto sysmsg = MidiMessageBuilder::BuildSystemMessage(
+				MidiClock::Now(),
+				MidiGroup((uint8_t)0),
 				packet.status,
 				packet.lo,
 				packet.hi
-			));
+			);
+			port.SendSingleMessagePacket(sysmsg);
 		}
 		inline virtual std::string getMidiErrorMessage() { return "Unknown Error (WinRT)"; }
 		inline virtual void getMidiOutDevices(midiOutputDevices_t& result) {

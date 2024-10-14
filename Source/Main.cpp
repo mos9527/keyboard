@@ -15,10 +15,11 @@
 
 #define CONFIG_FILENAME "config"
 struct {
-	int backend = 0;
+	int inputBackend = 0;
 	int inputChannel = 0;	
 	int inputChannelRemap = -1;
 	int inputDeviceIndex = 0;
+	int outputBackend = 0;
 	int outputDeviceIndex = 0;
 	int outputChannel = 0;
 	int keyboardKeymap[256]{};
@@ -52,7 +53,7 @@ const char* MIDI_BACKENDS[] = {
 #endif
 };
 template<typename... T> midiInContext_t make_midi_input_context(T const&... args) {
-	switch (g_config.backend)
+	switch (g_config.inputBackend)
 	{
 #ifdef WINRT
 #ifdef MIDI2
@@ -68,7 +69,7 @@ template<typename... T> midiInContext_t make_midi_input_context(T const&... args
 	}
 }
 template<typename... T> midiOutContext_t make_midi_output_context(T const&... args) {
-	switch (g_config.backend)
+	switch (g_config.outputBackend)
 	{
 #ifdef WINRT
 #ifdef MIDI2
@@ -197,16 +198,20 @@ void draw() {
 
 	if (ImGui::CollapsingHeader("Hardware", ImGuiTreeNodeFlags_None)) {
 		ImGui::Text("System");
-		if (ImGui::BeginCombo("Backend", MIDI_BACKENDS[g_config.backend])) {
-			for (int i = 0; i < extent_of(MIDI_BACKENDS); i++) {
-				bool selected = g_config.backend == i;
-				if (ImGui::Selectable(MIDI_BACKENDS[i], &selected)) {
-					g_config.backend = i;
-					setup();
+		auto draw_backend_selector = [&](auto& value, const char* title) {
+			if (ImGui::BeginCombo(title, MIDI_BACKENDS[value])) {
+				for (int i = 0; i < extent_of(MIDI_BACKENDS); i++) {
+					bool selected = value == i;
+					if (ImGui::Selectable(MIDI_BACKENDS[i], &selected)) {
+						value = i;
+						setup();
+					}
 				}
+				ImGui::EndCombo();
 			}
-			ImGui::EndCombo();
-		}
+		};
+		draw_backend_selector(g_config.inputBackend, "Input Backend");
+		draw_backend_selector(g_config.outputBackend, "Output Backend");
 		const char* channel_names[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10","11","12","13","14","15","16" };
 		auto draw_button_array = [&](int& value, const auto& names, const int id = 0, const int* states = nullptr) -> bool {
 			bool dirty = false;

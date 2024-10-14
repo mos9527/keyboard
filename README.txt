@@ -2,7 +2,7 @@ keyboard
 ---
 Simple TUI chords/notes visualization tool.
 * Windows only (for now)
-* WinMM/WinRT/MIDI2 API support (BLE MIDI devices are supported w/ WinRT/MIDI2)
+* WinMM/WinRT/MIDI2 API support (BLE MIDI devices are supported w/ WinRT/MIDI2, Multi-client is supported w/ MIDI2)
 * detects chords/intervals and display their name(s).
 * supports (partial) MIDI passthrough to another output device
 * can map MIDI inputs to keyboard keystrokes. (dunno why you'd want to do that)
