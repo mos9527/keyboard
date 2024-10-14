@@ -25,7 +25,7 @@ namespace midi {
 			case MIM_LONGDATA:
 			{
 				MIDIHDR* hdr = (MIDIHDR*)dwParam1;
-				ctx->messages.push(make_shared<sysexMessage_t::element_type>(
+				ctx->messages.push(make_shared<sysExMessage::element_type>(
 					*(char**)hdr->lpData, hdr->dwBytesRecorded
 				));
 				break;

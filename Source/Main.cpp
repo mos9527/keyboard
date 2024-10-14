@@ -115,7 +115,7 @@ void setup() {
 	if (g_midiOutDevices.size())
 		g_midiOutContext = make_midi_output_context(g_midiOutDevices[std::min(g_midiOutDevices.size() - 1, (size_t)g_config.outputDeviceIndex)]);
 	if (g_midiInContext->getStatus())
-		g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)g_midiChannelStates[g_config.outputChannel].program });
+		g_midiOutContext->sendMessage(midi::programChangeMessage{ (BYTE)g_config.outputChannel, (BYTE)g_midiChannelStates[g_config.outputChannel].program });
 }
 void poll_input() {
 	auto map_midi_to_keystroke = [&](uint8_t velocity, uint8_t key) {
@@ -136,7 +136,7 @@ void poll_input() {
 				auto& message = pool.value();
 				bool passthrough = true;
 				std::visit(visitor{
-					[&](keyDownMessage_t& msg) {
+					[&](noteOnMessage& msg) {
 						if (!g_midiChannelStates[msg.channel].hold)
 							g_midiChannelStates[msg.channel].keys[msg.note] = msg.velocity;
 						else {
@@ -148,7 +148,7 @@ void poll_input() {
 						if (g_midiChannelStates[msg.channel].muted)
 							passthrough = false;
 					},
-					[&](keyUpMessage_t& msg) {
+					[&](noteOffMessage& msg) {
 						if (!g_midiChannelStates[msg.channel].hold)
 							g_midiChannelStates[msg.channel].keys[msg.note] = 0;
 						else
@@ -156,14 +156,14 @@ void poll_input() {
 						if (msg.channel == g_config.inputChannel)
 							map_midi_to_keystroke(0, msg.note);
 					},
-					[&](pitchWheelMessage_t& msg) {
+					[&](pitchBendMessage& msg) {
 						g_midiChannelStates[msg.channel].controls.pitchBend = msg.level;
 					},
-					[&](controllerMessage_t& msg) {
+					[&](controlChangeMessage& msg) {
 						if (msg.controller == 1) g_midiChannelStates[msg.channel].controls.modulation = msg.value;
 						if (msg.controller == 64) g_midiChannelStates[msg.channel].controls.pedal = msg.value;
 					},
-					[&](programChangeMessage_t& msg) {
+					[&](programChangeMessage& msg) {
 						g_midiChannelStates[msg.channel].program = msg.program;
 					}
 					}, message);
@@ -302,7 +302,7 @@ void draw() {
 				ImGui::SameLine();
 				program_changed |= draw_twiddle_button(program, 0, extent_of(midi::gm::programs), 32);
 				if (program_changed)
-					g_midiOutContext->sendMessage(midi::programChangeMessage_t{ (BYTE)g_config.outputChannel, (BYTE)program });				
+					g_midiOutContext->sendMessage(midi::programChangeMessage{ (BYTE)g_config.outputChannel, (BYTE)program });				
 			}
 			auto& muted = g_midiChannelStates[g_config.outputChannel].muted;
 			auto& solo = g_midiChannelStates[g_config.outputChannel].solo;
@@ -310,7 +310,7 @@ void draw() {
 			auto release_all_keys = [&](int channel) {
 				for (int i = 0; i < 128; i++) {
 					if (g_midiChannelStates[channel].keys[i] > 0) {
-						g_midiOutContext->sendMessage(midi::keyUpMessage_t{ (BYTE)channel, (BYTE)i, 0 });
+						g_midiOutContext->sendMessage(midi::noteOffMessage{ (BYTE)channel, (BYTE)i, 0 });
 						g_midiChannelStates[channel].keys[i] = 0;
 					}
 				}

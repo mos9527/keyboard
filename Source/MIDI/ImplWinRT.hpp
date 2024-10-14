@@ -17,24 +17,24 @@ namespace midi {
 			switch (message.Type())
 			{
 			case Windows::Devices::Midi::MidiMessageType::NoteOn:
-				ctx->messages.push(keyDownMessage_t{ message.as<MidiNoteOnMessage>().Channel(), message.as<MidiNoteOnMessage>().Note(), message.as<MidiNoteOnMessage>().Velocity() });
+				ctx->messages.push(noteOnMessage{ message.as<MidiNoteOnMessage>().Channel(), message.as<MidiNoteOnMessage>().Note(), message.as<MidiNoteOnMessage>().Velocity() });
 				break;
 			case Windows::Devices::Midi::MidiMessageType::NoteOff:
-				ctx->messages.push(keyUpMessage_t{ message.as<MidiNoteOffMessage>().Channel(), message.as<MidiNoteOffMessage>().Note() });
+				ctx->messages.push(noteOffMessage{ message.as<MidiNoteOffMessage>().Channel(), message.as<MidiNoteOffMessage>().Note() });
 				break;
 			case Windows::Devices::Midi::MidiMessageType::ProgramChange:
-				ctx->messages.push(programChangeMessage_t{ message.as<MidiProgramChangeMessage>().Channel(), message.as<MidiProgramChangeMessage>().Program() });
+				ctx->messages.push(programChangeMessage{ message.as<MidiProgramChangeMessage>().Channel(), message.as<MidiProgramChangeMessage>().Program() });
 				break;
 			case Windows::Devices::Midi::MidiMessageType::PitchBendChange:
-				ctx->messages.push(pitchWheelMessage_t{ message.as<MidiPitchBendChangeMessage>().Channel(), message.as<MidiPitchBendChangeMessage>().Bend() });
+				ctx->messages.push(pitchBendMessage{ message.as<MidiPitchBendChangeMessage>().Channel(), message.as<MidiPitchBendChangeMessage>().Bend() });
 				break;
 			case Windows::Devices::Midi::MidiMessageType::ControlChange:
-				ctx->messages.push(controllerMessage_t{ message.as<MidiControlChangeMessage>().Channel(), message.as<MidiControlChangeMessage>().Controller(), message.as<MidiControlChangeMessage>().ControlValue() });
+				ctx->messages.push(controlChangeMessage{ message.as<MidiControlChangeMessage>().Channel(), message.as<MidiControlChangeMessage>().Controller(), message.as<MidiControlChangeMessage>().ControlValue() });
 				break;
 			case Windows::Devices::Midi::MidiMessageType::SystemExclusive:
 			{
 				auto sysex = message.as<MidiSystemExclusiveMessage>();
-				ctx->messages.push(make_shared<sysexMessage_t::element_type>(
+				ctx->messages.push(make_shared<sysExMessage::element_type>(
 					(char*)sysex.RawData().data(), sysex.RawData().Length()
 				));
 				break;
@@ -100,22 +100,22 @@ namespace midi {
 		inline virtual void sendMessage(message_t const& message) {
 			if (!getStatus()) return;
 			visit(visitor{
-				[&](keyDownMessage_t const& msg) {
+				[&](noteOnMessage const& msg) {
 					port.SendMessageW(MidiNoteOnMessage(msg.channel, msg.note, msg.velocity));
 				},
-				[&](keyUpMessage_t const& msg) {
+				[&](noteOffMessage const& msg) {
 					port.SendMessageW(MidiNoteOffMessage(msg.channel, msg.note, msg.velocity));
 				},
-				[&](programChangeMessage_t const& msg) {
+				[&](programChangeMessage const& msg) {
 					port.SendMessageW(MidiProgramChangeMessage(msg.channel, msg.program));
 				},
-				[&](pitchWheelMessage_t const& msg) {
+				[&](pitchBendMessage const& msg) {
 					port.SendMessageW(MidiPitchBendChangeMessage(msg.channel, msg.level));
 				},
-				[&](controllerMessage_t const& msg) {
+				[&](controlChangeMessage const& msg) {
 					port.SendMessageW(MidiControlChangeMessage(msg.channel, msg.controller, msg.value));
 				},
-				[&](sysexMessage_t const& msg) {
+				[&](sysExMessage const& msg) {
 					Buffer buffer(msg->size());
 					memcpy(buffer.data(), msg->data(), msg->size());
 					port.SendMessageW(MidiSystemExclusiveMessage(buffer));
