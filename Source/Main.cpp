@@ -95,8 +95,7 @@ struct {
 	chord::midi_key_states_t keys;
 	struct {
 		int pitchBend = 0x2000;
-		int modulation = 0;
-		int pedal = 0;
+		uint8_t cc[128]{};
 	} controls;
 } g_midiChannelStates[midi::MAX_CHANNEL_COUNT];
 const uint8_t ACTIVE_INPUT_FRAMES = 3;
@@ -160,8 +159,7 @@ void poll_input() {
 						g_midiChannelStates[msg.channel].controls.pitchBend = msg.level;
 					},
 					[&](controlChangeMessage& msg) {
-						if (msg.controller == 1) g_midiChannelStates[msg.channel].controls.modulation = msg.value;
-						if (msg.controller == 64) g_midiChannelStates[msg.channel].controls.pedal = msg.value;
+						g_midiChannelStates[msg.channel].controls.cc[msg.controller] = msg.value;
 					},
 					[&](programChangeMessage& msg) {
 						g_midiChannelStates[msg.channel].program = msg.program;
@@ -261,9 +259,9 @@ void draw() {
 		auto width = ImGui::CalcItemWidth() / 3.0f;
 		ImGui::ProgressBar(g_midiChannelStates[g_config.inputChannel].controls.pitchBend / 8192.0f / 2.0f, ImVec2(width, 1), "PITCH");
 		ImGui::SameLine();
-		ImGui::ProgressBar(g_midiChannelStates[g_config.inputChannel].controls.modulation / 127.0f, ImVec2(width, 1), "MOD");
+		ImGui::ProgressBar(g_midiChannelStates[g_config.inputChannel].controls.cc[1] / 127.0f, ImVec2(width, 1), "MOD");
 		ImGui::SameLine();
-		ImGui::ProgressBar(g_midiChannelStates[g_config.inputChannel].controls.pedal / 127.0f, ImVec2(width, 1), "SUSTAIN");
+		ImGui::ProgressBar(g_midiChannelStates[g_config.inputChannel].controls.cc[64] / 127.0f, ImVec2(width, 1), "SUSTAIN");
 		draw_button_array(g_config.inputChannel, channel_names, 0, g_activeInputs.data());
 		ImGui::Text("Input Channel");
 		ImGui::SliderInt("Remap Channel", &g_config.inputChannelRemap, -1, 15);
@@ -304,33 +302,40 @@ void draw() {
 				if (program_changed)
 					g_midiOutContext->sendMessage(midi::programChangeMessage{ (BYTE)g_config.outputChannel, (BYTE)program });				
 			}
-			auto& muted = g_midiChannelStates[g_config.outputChannel].muted;
-			auto& solo = g_midiChannelStates[g_config.outputChannel].solo;
-			auto& hold = g_midiChannelStates[g_config.outputChannel].hold;
-			auto release_all_keys = [&](int channel) {
-				for (int i = 0; i < 128; i++) {
-					if (g_midiChannelStates[channel].keys[i] > 0) {
-						g_midiOutContext->sendMessage(midi::noteOffMessage{ (BYTE)channel, (BYTE)i, 0 });
-						g_midiChannelStates[channel].keys[i] = 0;
+			ImGui::Text("Channel Settings");
+			{
+				auto& muted = g_midiChannelStates[g_config.outputChannel].muted;
+				auto& solo = g_midiChannelStates[g_config.outputChannel].solo;
+				auto& hold = g_midiChannelStates[g_config.outputChannel].hold;
+				auto release_all_keys = [&](int channel) {
+					for (int i = 0; i < 128; i++) {
+						if (g_midiChannelStates[channel].keys[i] > 0) {
+							g_midiOutContext->sendMessage(midi::noteOffMessage{ (BYTE)channel, (BYTE)i, 0 });
+							g_midiChannelStates[channel].keys[i] = 0;
+						}
+					}
+					};
+				auto set_channel_mute = [&](int channel, bool mute) {
+					g_midiChannelStates[channel].muted = mute;
+					if (mute) release_all_keys(channel);
+					};
+				ImGui::Checkbox("Mute", &muted); ImGui::SameLine();
+				if (ImGui::Checkbox("Solo", &solo)) {
+					if (!solo) for (int i = 0; i < midi::MAX_CHANNEL_COUNT; i++) set_channel_mute(i, false);
+					else {
+						for (int i = 0; i < midi::MAX_CHANNEL_COUNT; i++) set_channel_mute(i, true), g_midiChannelStates[i].solo = false;
+						muted = false, solo = true;
 					}
 				}
-				};
-			auto set_channel_mute = [&](int channel, bool mute) {
-				g_midiChannelStates[channel].muted = mute;
-				if (mute) release_all_keys(channel);
-				};
-			ImGui::Checkbox("Mute", &muted); ImGui::SameLine();
-			if (ImGui::Checkbox("Solo", &solo)) {
-				if (!solo) for (int i = 0; i < midi::MAX_CHANNEL_COUNT; i++) set_channel_mute(i, false);
-				else {
-					for (int i = 0; i < midi::MAX_CHANNEL_COUNT; i++) set_channel_mute(i, true), g_midiChannelStates[i].solo = false;
-					muted = false, solo = true;
+				ImGui::SameLine();
+				if (ImGui::Checkbox("Hold", &hold)) {
+					if (!hold) release_all_keys(g_config.outputChannel);
 				}
 			}
-			ImGui::SameLine();
-			if (ImGui::Checkbox("Hold", &hold)) {
-				if (!hold) release_all_keys(g_config.outputChannel);
-			}			
+			ImGui::Text("CC Controls");
+			{
+
+			}
 		}
 		static bool sync_input_output_chn_select = true;
 		ImGui::Checkbox("Sync Input/Output Channel Selection", &sync_input_output_chn_select);
